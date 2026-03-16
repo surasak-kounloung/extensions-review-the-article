@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML Tag Reviewer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        <h1>HTML Tag Reviewer</h1>
+      </div>
+      <p class="subtitle">ตรวจสอบแท็ก HTML ในเนื้อหาหน้าเว็บ</p>
+    </header>
+
+    <div class="toggle-area">
+      <button id="btn-toggle" class="btn-toggle">
+        <div class="btn-icon" id="btn-icon">
+          <svg id="icon-scan" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <svg id="icon-stop" class="hidden" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+          </svg>
+        </div>
+        <span id="btn-label">เปิดสแกนหน้าเว็บ</span>
+      </button>
+    </div>
+
+    <div id="status" class="status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">พร้อมใช้งาน</span>
+    </div>
+
+    <div id="message" class="message hidden"></div>
+
+    <div class="link-checker">
+      <div class="link-header">
+        <h3>ผลตรวจสอบลิงก์</h3>
+      </div>
+      <div id="link-progress" class="link-progress hidden">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <span id="progress-text" class="progress-text">0 / 0</span>
+      </div>
+      <div id="link-summary" class="link-summary hidden">
+        <span class="link-stat ok"><span id="count-ok">0</span> OK</span>
+        <span class="link-stat broken"><span id="count-broken">0</span> เสีย</span>
+        <span class="link-stat total"><span id="count-total">0</span> ทั้งหมด</span>
+      </div>
+      <div id="link-results" class="link-results"></div>
+    </div>
+
+    <div class="link-checker">
+      <div class="link-header">
+        <h3>ตรวจสอบลิงก์หัวข้อ (#)</h3>
+      </div>
+      <div id="anchor-summary" class="link-summary hidden">
+        <span class="link-stat ok"><span id="anchor-ok">0</span> OK</span>
+        <span class="link-stat broken"><span id="anchor-broken">0</span> เสีย</span>
+        <span class="link-stat total"><span id="anchor-total">0</span> ทั้งหมด</span>
+      </div>
+      <div id="anchor-results" class="link-results"></div>
+    </div>
+
+    <div class="link-checker">
+      <div class="link-header" style="margin-bottom: 5px;">
+        <h3>ตรวจสอบเส้นคั่นก่อน H2</h3>
+      </div>
+      <p class="checker-desc">ตรวจว่าก่อน &lt;h2&gt; มีเส้นคั่น &lt;hr&gt; ไหม</p>
+      <div id="h2-summary" class="link-summary hidden">
+        <span class="link-stat ok"><span id="h2-ok">0</span> OK</span>
+        <span class="link-stat broken"><span id="h2-broken">0</span> ไม่ครบ</span>
+        <span class="link-stat total"><span id="h2-total">0</span> ทั้งหมด</span>
+      </div>
+      <div id="h2-results" class="link-results"></div>
+    </div>
+
+    <!-- <div class="legend">
+      <h3>สีหมวดหมู่แท็ก</h3>
+      <div class="legend-grid">
+        <span class="legend-item"><span class="legend-dot" style="background:#38bdf8"></span>โครงสร้าง</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span>ข้อความ</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#e879f9"></span>สื่อ</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span>ฟอร์ม</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#2dd4bf"></span>ตาราง</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#fb7185"></span>Semantic</span>
+      </div>
+    </div> -->
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
