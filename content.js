@@ -91,7 +91,8 @@ function injectStyles() {
       top: -21px !important;
       left: 32px !important;
     }
-    .wp-block-separator + .htr-tag-badge.hr {
+    .wp-block-separator + .htr-tag-badge.hr, 
+    hr + .htr-tag-badge.hr {
       position: relative !important;
       display: inline-block;
       top: 0 !important;
