@@ -173,6 +173,8 @@ function activate() {
       'wp-block-table',
       'has-fixed-layout',
       'play',
+      'vsq-sp-list', 
+      'list-indent'
     ];
 
     const elClasses = (!HIDE_CLASS_TAGS.includes(tag) && el.className)
