@@ -105,9 +105,9 @@ async function updateProgress(tabId) {
     if (progress.status === 'done') {
       const saved = data[`linkResults_${tabId}`];
       if (saved && saved.brokenCount > 0) {
-        showMessage(`พบ ${saved.brokenCount} link ที่มีปัญหา`, 'error');
+        showMessage(`พบ ${saved.brokenCount} ลิงก์ที่มีปัญหา`, 'error');
       } else {
-        showMessage('ทุก link ใช้งานได้ปกติ', 'success');
+        showMessage('ทุกลิงก์ใช้งานได้ปกติ', 'success');
       }
     }
   }

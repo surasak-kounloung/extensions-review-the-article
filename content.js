@@ -32,13 +32,24 @@ function getCategory(tagName) {
 let isActive = false;
 let styleEl = null;
 
-const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span', 'picture', 'source', 'thead', 'tbody', 'tr', 'th', 'td'];
+const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span', 'i', 'picture', 'source', 'thead', 'tbody', 'tr', 'th', 'td'];
+const CONTENT_SELECTOR = '.site-content, .cs-site-content';
+const CONTENT_CLASSES = ['site-content', 'cs-site-content'];
+
+function getContentContainer() {
+  return document.querySelector(CONTENT_SELECTOR);
+}
+function isContentContainer(el) {
+  return el && CONTENT_CLASSES.some(c => el.classList.contains(c));
+}
 
 function injectStyles() {
   if (styleEl) return;
   styleEl = document.createElement('style');
   styleEl.id = 'html-reviewer-styles';
   styleEl.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@100;200;300;400;500;600;700&family=Kanit:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+
     .htr-tag-badge {
       position: absolute !important;
       top: -20px !important;
@@ -47,15 +58,15 @@ function injectStyles() {
       min-height: 20px;
       padding: 1px 6px !important;
       margin: 0;
-      font-family: Consolas, 'Courier New', monospace !important;
+      font-family: "Sarabun", sans-serif !important;
       font-size: 12px !important;
-      font-weight: 700 !important;
+      font-weight: 500 !important;
       line-height: 1.5 !important;
       color: #fff !important;
-      border: 0;
+      border: 0 !important;
       background: var(--htr-badge-color, #7c6ff7) !important;
       pointer-events: none !important;
-      z-index: 9999 !important;
+      z-index: 995 !important;
       white-space: nowrap !important;
     }
     .htr-tag-badge.figure.img {
@@ -98,17 +109,24 @@ function injectStyles() {
       top: 0 !important;
       margin-top: -50px;
     }
-    .wp-block-embed.wp-block-embed-youtube .rll-youtube-player > div {
-      position: absolute !important;
-      height: 100% !important;
-      width: 100% !important;
-    }
     .htr-tag-badge.figure.table {
       top: -21px !important;
       left: 61px !important;
     }
     .htr-tag-badge.table.strong {
       left: 0 !important;
+    }
+
+    /****************************************************/
+    /****** Fixed website when program is running ******/
+    /**************************************************/
+    .wp-block-embed.wp-block-embed-youtube .rll-youtube-player > div {
+      position: absolute !important;
+      height: 100% !important;
+      width: 100% !important;
+    }
+    .vsq-video-frame .video-play-button {
+      position: absolute !important;
     }
   `;
   document.head.appendChild(styleEl);
@@ -121,9 +139,9 @@ function removeStyles() {
 function activate() {
   if (isActive) return { success: true, alreadyActive: true };
 
-  const container = document.querySelector('.site-content');
+  const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" ในหน้าเว็บนี้' };
+    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content" ในหน้าเว็บนี้' };
   }
 
   isActive = true;
@@ -148,7 +166,7 @@ function activate() {
 
     const parentPath = [];
     let node = el.parentElement;
-    while (node && !node.classList.contains('site-content')) {
+    while (node && !isContentContainer(node)) {
       const pTag = node.tagName.toLowerCase();
       if (!SKIP_TAGS.includes(pTag)) parentPath.unshift(pTag);
       node = node.parentElement;
@@ -173,8 +191,12 @@ function activate() {
       'wp-block-table',
       'has-fixed-layout',
       'play',
+      'icon-play', 
+      'video-play-button', 
       'vsq-sp-list', 
-      'list-indent'
+      'list-indent', 
+      'vsq-font-family', 
+      'vsq-size-font'
     ];
 
     const elClasses = (!HIDE_CLASS_TAGS.includes(tag) && el.className)
@@ -222,9 +244,9 @@ function deactivate() {
 }
 
 function collectLinks() {
-  const container = document.querySelector('.site-content');
+  const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content"', links: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content"', links: [] };
   }
 
   const anchors = container.querySelectorAll('a[href]');
@@ -248,9 +270,9 @@ function collectLinks() {
 }
 
 function checkAnchorLinks() {
-  const container = document.querySelector('.site-content');
+  const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content"', results: [] };
   }
 
   const anchors = container.querySelectorAll('a[href^="#"]');
@@ -284,9 +306,9 @@ function checkAnchorLinks() {
 }
 
 function checkH2Structure() {
-  const container = document.querySelector('.site-content');
+  const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content"', results: [] };
   }
 
   const h2List = container.querySelectorAll('h2');
@@ -336,7 +358,7 @@ function checkH2Structure() {
 }
 
 function scrollToH2(index) {
-  const container = document.querySelector('.site-content');
+  const container = getContentContainer();
   if (!container) return { success: false };
 
   const h2List = container.querySelectorAll('h2');
@@ -367,7 +389,7 @@ function scrollToH2(index) {
 }
 
 function scrollToLink(url) {
-  const container = document.querySelector('.site-content');
+  const container = getContentContainer();
   if (!container) return { success: false };
 
   document.querySelectorAll('.htr-highlight-broken').forEach(el => {
