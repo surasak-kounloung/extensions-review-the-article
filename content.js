@@ -56,12 +56,12 @@ function injectStyles() {
       left: -2px !important;
       width: auto !important;
       min-height: 20px;
-      padding: 1px 6px !important;
+      padding: 1px 6px 2px !important;
       margin: 0;
       font-family: "Sarabun", sans-serif !important;
       font-size: 12px !important;
       font-weight: 500 !important;
-      line-height: 1.5 !important;
+      line-height: 1.4 !important;
       color: #fff !important;
       border: 0 !important;
       background: var(--htr-badge-color, #7c6ff7) !important;
@@ -95,7 +95,7 @@ function injectStyles() {
       top: -22px !important;
     }
     .vsq-readmore .htr-tag-badge.p.strong {
-      top: -35px !important;
+      top: -6px !important;
     }
     .wp-block-kadence-accordion .htr-tag-badge.h2.button, 
     .wp-block-kadence-accordion .htr-tag-badge.h3.button {
@@ -108,6 +108,11 @@ function injectStyles() {
       display: inline-block;
       top: 0 !important;
       margin-top: -50px;
+    }
+    .htr-tag-badge.br {
+      position: relative !important;
+      display: inline-block;
+      top: 0 !important;
     }
     .htr-tag-badge.figure.table {
       top: -21px !important;
