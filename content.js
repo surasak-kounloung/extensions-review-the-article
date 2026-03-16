@@ -305,24 +305,26 @@ function checkH2Structure() {
     if (hasPs2id) {
       const prevPrev = prevEl.previousElementSibling;
       hasHr = prevPrev && prevPrev.matches('hr, .wp-block-separator');
+    } else if (prevEl) {
+      hasHr = prevEl.matches('hr, .wp-block-separator');
     }
 
     let status, statusText;
-    if (hasPs2id && hasHr) {
+    if (hasHr) {
       status = 'OK';
-      statusText = 'มี ps2id + hr ครบ';
+      statusText = hasPs2id ? 'มี ps2id + hr ครบ' : 'มี <hr> ก่อนหน้า (ไม่มี ps2id)';
     } else if (hasPs2id && !hasHr) {
       status = 'NO HR';
       statusText = 'มี ps2id แต่ไม่มี <hr> ก่อนหน้า';
     } else {
       status = 'NO PS2ID';
-      statusText = 'ไม่มี <div class="wp-block-ps2id-block-target"> ก่อนหน้า';
+      statusText = 'ไม่มี <hr> และไม่มี <div class="wp-block-ps2id-block-target"> ก่อนหน้า';
     }
 
     results.push({
       index: num,
       text,
-      ok: hasPs2id && hasHr,
+      ok: hasHr,
       hasPs2id,
       hasHr,
       status,
