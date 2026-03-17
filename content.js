@@ -105,7 +105,8 @@ function injectStyles() {
     .wp-block-separator + .htr-tag-badge.hr, 
     hr + .htr-tag-badge.hr {
       position: relative !important;
-      display: inline-block;
+      display: block;
+      max-width: 38px;
       top: 0 !important;
       margin-top: -50px;
     }
