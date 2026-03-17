@@ -33,8 +33,8 @@ let isActive = false;
 let styleEl = null;
 
 const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span', 'i', 'picture', 'source', 'thead', 'tbody', 'tr', 'th', 'td'];
-const CONTENT_SELECTOR = '.site-content, .cs-site-content';
-const CONTENT_CLASSES = ['site-content', 'cs-site-content'];
+const CONTENT_SELECTOR = '.entry-content, .blog-wrapper, .cs-site-content';
+const CONTENT_CLASSES = ['entry-content', 'blog-wrapper', 'cs-site-content'];
 
 function getContentContainer() {
   return document.querySelector(CONTENT_SELECTOR);
@@ -145,7 +145,7 @@ function activate() {
 
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content" ในหน้าเว็บนี้' };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content" ในหน้าเว็บนี้' };
   }
 
   isActive = true;
@@ -250,7 +250,7 @@ function deactivate() {
 function collectLinks() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content"', links: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', links: [] };
   }
 
   const anchors = container.querySelectorAll('a[href]');
@@ -276,7 +276,7 @@ function collectLinks() {
 function checkAnchorLinks() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
   }
 
   const anchors = container.querySelectorAll('a[href^="#"]');
@@ -312,7 +312,7 @@ function checkAnchorLinks() {
 function checkH2Structure() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="site-content" หรือ "cs-site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
   }
 
   const h2List = container.querySelectorAll('h2');
