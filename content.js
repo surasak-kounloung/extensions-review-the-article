@@ -121,7 +121,6 @@ function injectStyles() {
     .htr-tag-badge.table.strong {
       left: 0 !important;
     }
-
     /****************************************************/
     /****** Fixed website when program is running ******/
     /**************************************************/
