@@ -105,6 +105,14 @@ function injectStyles() {
     figcaption > em > .htr-tag-badge.em.br {
       top: calc(-48px + var(--htr-depth-offset, 0px)) !important;
     }
+    figcaption > a > .htr-tag-badge {
+      top: calc(-60px + var(--htr-depth-offset, 0px)) !important;
+    }
+    figcaption > a > strong > .htr-tag-badge, 
+    figcaption > a > b > .htr-tag-badge, 
+    figcaption > a > em > .htr-tag-badge {
+      top: calc(-55px + var(--htr-depth-offset, 0px)) !important;
+    }
     li > .htr-tag-badge {
       top: calc(-34px + var(--htr-depth-offset, 0px)) !important;
       left: -11px !important;
@@ -203,6 +211,22 @@ function injectStyles() {
     blockquote > p > a > .htr-tag-badge {
       top: calc(-56px + var(--htr-depth-offset, 0px)) !important;
     }
+    .img-before-after figure > .htr-tag-badge {
+      top: calc(0 + var(--htr-depth-offset, 0px)) !important;
+    }
+    .img-before-after img + .htr-tag-badge {
+      top: calc(4px + var(--htr-depth-offset, 0px)) !important;
+    }
+    .img-before-after .wp-block-kadence-column + .wp-block-kadence-column figure > .htr-tag-badge {
+      top: calc(0 + var(--htr-depth-offset, 0px)) !important;
+      right: 0 !important;
+      left: unset !important;
+    }
+    .img-before-after .wp-block-kadence-column + .wp-block-kadence-column img + .htr-tag-badge {
+      top: calc(4px + var(--htr-depth-offset, 0px)) !important;
+      right: 0 !important;
+      left: unset !important;
+    }
     /****************************************************/
     /****** Fixed website when program is running ******/
     /**************************************************/
@@ -214,6 +238,9 @@ function injectStyles() {
     }
     .vsq-video-frame .video-play-button {
       position: absolute !important;
+    }
+    .rll-youtube-player button > .htr-tag-badge {
+      display: none;
     }
     .kb-splide .splide__arrow, 
     .kb-splide .splide__pagination, 
