@@ -70,6 +70,29 @@ async function runPreChecksAndStart(tabId) {
       });
     }
 
+    try {
+      const yearRes = await chrome.tabs.sendMessage(tabId, { action: 'checkYearInContent' });
+      if (yearRes && yearRes.success && yearRes.results.length > 0) {
+        await chrome.storage.local.set({
+          [`yearResults_${tabId}`]: {
+            results: yearRes.results,
+            currentYear: yearRes.currentYear,
+            total: yearRes.results.length
+          }
+        });
+      } else if (yearRes && yearRes.success) {
+        await chrome.storage.local.set({
+          [`yearResults_${tabId}`]: {
+            results: [],
+            currentYear: yearRes.currentYear || String(new Date().getFullYear()),
+            total: 0
+          }
+        });
+      }
+    } catch {
+      // ปีอาจตรวจสอบไม่ได้ (ไม่มี container หรือ content script error)
+    }
+
     const linksRes = await chrome.tabs.sendMessage(tabId, { action: 'collectLinks' });
 
     startLinkFetch(tabId, linksRes);

@@ -1,6 +1,6 @@
 const TAG_CATEGORIES = {
   structure: ['html', 'head', 'body', 'div', 'span', 'header', 'footer', 'main', 'section', 'article', 'aside', 'nav', 'template', 'slot'],
-  header: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+  heading: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
   text: ['p', 'strong', 'em', 'b', 'i', 'u', 's', 'small', 'sub', 'sup', 'br', 'hr', 'blockquote', 'q', 'cite', 'code', 'pre', 'abbr', 'mark', 'del', 'ins', 'wbr', 'ruby', 'rt', 'rp', 'bdi', 'bdo', 'dfn', 'kbd', 'samp', 'var', 'time', 'data'],
   link: ['a'],
   media: ['img', 'video', 'audio', 'source', 'picture', 'figure', 'figcaption', 'canvas', 'svg', 'iframe', 'embed', 'object', 'map', 'area', 'track'],
@@ -10,15 +10,15 @@ const TAG_CATEGORIES = {
 };
 
 const CATEGORY_COLORS = {
-  structure: { badge: '#0e7490' },
-  header:    { badge: '#6fc3eb' },
-  text:      { badge: '#166534' },
-  link:      { badge: '#2953e9' },
-  media:     { badge: '#86198f' },
-  form:      { badge: '#92400e' },
-  table:     { badge: '#115e59' },
-  semantic:  { badge: '#9f1239' },
-  other:     { badge: '#334155' }
+  structure: { badge: 'rgba(14, 116, 144, 0.7)' },
+  heading:    { badge: 'rgba(48, 160, 213, 0.7)' },
+  text:      { badge: 'rgba(22, 101, 52, 0.7)' },
+  link:      { badge: 'rgba(41, 83, 233, 0.7)' },
+  media:     { badge: 'rgba(134, 25, 143, 0.7)' },
+  form:      { badge: 'rgba(146, 64, 14, 0.7)' },
+  table:     { badge: 'rgba(17, 94, 89, 0.7)' },
+  semantic:  { badge: 'rgba(159, 18, 57, 0.7)' },
+  other:     { badge: 'rgba(51, 65, 85, 0.7)' }
 };
 
 function getCategory(tagName) {
@@ -52,9 +52,10 @@ function injectStyles() {
 
     .htr-tag-badge {
       position: absolute !important;
-      top: -20px !important;
+      top: calc(-15px + var(--htr-depth-offset, 0px)) !important;
       left: -2px !important;
       width: auto !important;
+      max-width: unset;
       min-height: 20px;
       padding: 1px 6px 2px !important;
       margin: 0;
@@ -65,73 +66,162 @@ function injectStyles() {
       color: #fff !important;
       border: 0 !important;
       background: var(--htr-badge-color, #7c6ff7) !important;
-      pointer-events: none !important;
       z-index: 995 !important;
       white-space: nowrap !important;
-    }
-    .htr-tag-badge.figure.img {
-      left: 60px !important;
-    }
-    .htr-tag-badge.figure.a {
-      top: -39px !important;
-    }
-    .htr-tag-badge.figure.a.img {
-      top: -20px !important;
-    }
-    .htr-tag-badge.p.a {
-      top: -22px !important;
-    }
-    .htr-tag-badge.li.a {
-      top: -22px !important;
-    }
-    .listmenu .htr-tag-badge.li.a {
-      top: -20px !important;
-      left: 36px !important;
-    }
-    .htr-tag-badge.li.strong {
-      top: -22px !important;
-    }
-    .htr-tag-badge.p.strong {
-      top: -22px !important;
-    }
-    .vsq-readmore .htr-tag-badge.p.strong {
-      top: -6px !important;
-    }
-    .wp-block-kadence-accordion .htr-tag-badge.h2.button, 
-    .wp-block-kadence-accordion .htr-tag-badge.h3.button {
-      top: -21px !important;
-      left: 32px !important;
     }
     .wp-block-separator + .htr-tag-badge.hr, 
     hr + .htr-tag-badge.hr {
       position: relative !important;
       display: block;
       max-width: 38px;
-      top: 0 !important;
-      margin-top: -50px;
+      top: calc(9px + var(--htr-depth-offset, 0px)) !important;
+      margin-top: -60px;
     }
     .htr-tag-badge.br {
       position: relative !important;
-      display: inline-block;
-      top: 0 !important;
+      display: block;
+      max-width: 35px;
+      top: calc(-9px + var(--htr-depth-offset, 0px)) !important;
+      margin-top: -20px;
     }
-    .htr-tag-badge.figure.table {
-      top: -21px !important;
-      left: 61px !important;
+    strong > .htr-tag-badge.br, 
+    b > .htr-tag-badge.br, 
+    em > .htr-tag-badge.br, 
+    u > .htr-tag-badge.br {
+      top: calc(-28px + var(--htr-depth-offset, 0px)) !important;
     }
-    .htr-tag-badge.table.strong {
-      left: 0 !important;
+    p > mark > .htr-tag-badge.br {
+      top: calc(-30px + var(--htr-depth-offset, 0px)) !important;
+    }
+    figure > figcaption > .htr-tag-badge.figcaption:not(.br) {
+      top: calc(-28px + var(--htr-depth-offset, 0px)) !important;
+    }
+    figcaption > .htr-tag-badge.br {
+      top: calc(-31px + var(--htr-depth-offset, 0px)) !important;
+    }
+    figcaption > em > .htr-tag-badge {
+      top: calc(-36px + var(--htr-depth-offset, 0px)) !important;
+    }
+    figcaption > em > .htr-tag-badge.em.br {
+      top: calc(-48px + var(--htr-depth-offset, 0px)) !important;
+    }
+    li > .htr-tag-badge {
+      top: calc(-34px + var(--htr-depth-offset, 0px)) !important;
+      left: -11px !important;
+    }
+    li > a > .htr-tag-badge {
+      top: calc(-55px + var(--htr-depth-offset, 0px)) !important;
+    }
+    li > ul > .htr-tag-badge, 
+    li > ol > .htr-tag-badge {
+      top: calc(-52px + var(--htr-depth-offset, 0px)) !important;
+      left: -11px !important;
+    }
+    li > ul > li > .htr-tag-badge, 
+    li > ol > li > .htr-tag-badge {
+      top: calc(-71px + var(--htr-depth-offset, 0px)) !important;
+      left: -5px !important;
+    }
+    li > ul > li > a > .htr-tag-badge, 
+    li > ol > li > a > .htr-tag-badge {
+      top: calc(-92px + var(--htr-depth-offset, 0px)) !important;
+    }
+    li > ul > li > ul > .htr-tag-badge, 
+    li > ol > li > ol > .htr-tag-badge, 
+    li > ul > li > ol > .htr-tag-badge, 
+    li > ol > li > ul > .htr-tag-badge {
+      top: calc(-90px + var(--htr-depth-offset, 0px)) !important;
+      left: -5px !important;
+    }
+    li > ul > li > ul > li > .htr-tag-badge, 
+    li > ol > li > ol > li > .htr-tag-badge, 
+    li > ul > li > ol > li > .htr-tag-badge, 
+    li > ol > li > ul > li > .htr-tag-badge {
+      top: calc(-109px + var(--htr-depth-offset, 0px)) !important;
+      left: 1px !important;
+    }
+    li > ul > li > ul > li > a > .htr-tag-badge, 
+    li > ol > li > ol > li > a > .htr-tag-badge, 
+    li > ul > li > ol > li > a > .htr-tag-badge, 
+    li > ol > li > ul > li > a > .htr-tag-badge {
+      top: calc(-130px + var(--htr-depth-offset, 0px)) !important;
+    }
+    .listmenu > li > a > .htr-tag-badge {
+      top: calc(-53px + var(--htr-depth-offset, 0px)) !important;
+      left: 22px !important;
+    }
+    .listmenu > li > ul > li > a > .htr-tag-badge, 
+    .listmenu > li > ol > li > a > .htr-tag-badge {
+      top: calc(-90px + var(--htr-depth-offset, 0px)) !important;
+      left: 28px !important;
+    }
+    .listmenu > li > ul > li > ul > li > a > .htr-tag-badge, 
+    .listmenu > li > ol > li > ol > li > a > .htr-tag-badge, 
+    .listmenu > li > ul > li > ol > li > a > .htr-tag-badge, 
+    .listmenu > li > ol > li > ul > li > a > .htr-tag-badge {
+      top: calc(-128px + var(--htr-depth-offset, 0px)) !important;
+      left: 34px !important;
+    }
+    li > strong > .htr-tag-badge, 
+    li > b > .htr-tag-badge, 
+    li > em > .htr-tag-badge, 
+    li > u > .htr-tag-badge {
+      top: calc(-35px + var(--htr-depth-offset, 0px)) !important;
+    }
+    table th > strong > .htr-tag-badge, 
+    table td > strong > .htr-tag-badge {
+      top: calc(-55px + var(--htr-depth-offset, 0px)) !important;
+    }
+    table th > ul > .htr-tag-badge, 
+    table td > ul > .htr-tag-badge, 
+    table th > ol > .htr-tag-badge, 
+    table td > ol > .htr-tag-badge {
+      top: calc(-55px + var(--htr-depth-offset, 0px)) !important;
+      left: -27px !important;
+    }
+    table th > ul > li > .htr-tag-badge, 
+    table td > ul > li > .htr-tag-badge, 
+    table th > ol > li > .htr-tag-badge, 
+    table td > ol > li > .htr-tag-badge {
+      top: calc(-74px + var(--htr-depth-offset, 0px)) !important;
+    }
+    p > a > .htr-tag-badge {
+      top: calc(-36px + var(--htr-depth-offset, 0px)) !important;
+    }
+    p > mark > .htr-tag-badge {
+      top: calc(-32px + var(--htr-depth-offset, 0px)) !important;
+    }
+    p > mark > strong > .htr-tag-badge, 
+    p > mark > b > .htr-tag-badge,  
+    p > mark > em > .htr-tag-badge, 
+    p > mark > u > .htr-tag-badge {
+      top: calc(-35px + var(--htr-depth-offset, 0px)) !important;
+    }
+    blockquote > p > .htr-tag-badge {
+      top: calc(-35px + var(--htr-depth-offset, 0px)) !important;
+    }
+    blockquote > p > a > .htr-tag-badge {
+      top: calc(-56px + var(--htr-depth-offset, 0px)) !important;
     }
     /****************************************************/
     /****** Fixed website when program is running ******/
     /**************************************************/
-    .wp-block-embed.wp-block-embed-youtube .rll-youtube-player > div {
+    .wp-block-embed.wp-block-embed-youtube .rll-youtube-player > div, 
+    .wp-block-embed iframe {
       position: absolute !important;
       height: 100% !important;
       width: 100% !important;
     }
     .vsq-video-frame .video-play-button {
       position: absolute !important;
+    }
+    .kb-splide .splide__arrow, 
+    .kb-splide .splide__pagination, 
+    .kb-splide ul.splide__pagination.splide__pagination {
+      position: absolute !important;
+    }
+    .kb-splide .splide__pagination li button .htr-tag-badge {
+      display: none !important;
     }
   `;
   document.head.appendChild(styleEl);
@@ -201,7 +291,21 @@ function activate() {
       'vsq-sp-list', 
       'list-indent', 
       'vsq-font-family', 
-      'vsq-size-font'
+      'vsq-size-font',
+      'multisubtext',
+      'listmenu',
+      'two-column',
+      '__mPS2id',
+      '_mPS2id-h',
+      'has-inline-color',
+      'splide__pagination',
+      'slick-dots', 
+      'splide__pagination--ltr', 
+      'splide__arrow', 
+      'splide__arrow--prev', 
+      'slick-prev', 
+      'splide__arrow--next', 
+      'slick-next'
     ];
 
     const elClasses = (!HIDE_CLASS_TAGS.includes(tag) && el.className)
@@ -219,6 +323,8 @@ function activate() {
       badge.textContent = `<${tag}${classStr}>`;
     }
     badge.style.setProperty('--htr-badge-color', colors.badge);
+    const depth = parentPath.length;
+    badge.style.setProperty('--htr-depth-offset', depth ? `${depth * 19}px` : '0px');
 
     if (isVoid) {
       el.after(badge);
@@ -236,6 +342,10 @@ function deactivate() {
   isActive = false;
 
   document.querySelectorAll('.htr-tag-badge').forEach(b => b.remove());
+  document.querySelectorAll('.htr-year-matched').forEach(el => {
+    delete el.dataset.htrYearMatch;
+    el.classList.remove('htr-year-matched');
+  });
 
   document.querySelectorAll('[data-htr-orig-pos]').forEach(el => {
     el.style.position = el.dataset.htrOrigPos || '';
@@ -362,6 +472,98 @@ function checkH2Structure() {
   return { success: true, results };
 }
 
+function checkYearInContent() {
+  const container = getContentContainer();
+  if (!container) {
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
+  }
+
+  const currentYear = new Date().getFullYear();
+  const currentYearStr = String(currentYear);
+  const results = [];
+  let matchIndex = 0;
+
+  container.querySelectorAll('[data-htr-year-ids]').forEach(el => delete el.dataset.htrYearIds);
+
+  const yearRegex = /\b(19\d{2}|20\d{2})\b/g;
+
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+  let textNode;
+  while ((textNode = walker.nextNode())) {
+    const parent = textNode.parentElement;
+    if (!parent || SKIP_TAGS.includes(parent.tagName.toLowerCase())) continue;
+
+    const text = textNode.textContent;
+    let match;
+    yearRegex.lastIndex = 0;
+    while ((match = yearRegex.exec(text)) !== null) {
+      const yearStr = match[0];
+      const yearNum = parseInt(yearStr, 10);
+      if (yearNum === currentYear) continue;
+
+      matchIndex++;
+      const pos = match.index;
+      const start = Math.max(0, pos - 30);
+      const end = Math.min(text.length, pos + yearStr.length + 30);
+      const context = (start > 0 ? '...' : '') + text.substring(start, end) + (end < text.length ? '...' : '');
+      const clone = parent.cloneNode(true);
+      clone.querySelectorAll('.htr-tag-badge').forEach(b => b.remove());
+      const parentText = clone.textContent.trim().substring(0, 100);
+
+      if (parent.dataset.htrYearIds) {
+        parent.dataset.htrYearIds += ',' + matchIndex;
+      } else {
+        parent.dataset.htrYearIds = String(matchIndex);
+      }
+
+      results.push({
+        index: matchIndex,
+        year: yearStr,
+        context: (context || parentText).trim(),
+        tagName: parent.tagName.toLowerCase(),
+        ok: true,
+        status: 'พบ'
+      });
+    }
+  }
+
+  return { success: true, results, currentYear: currentYearStr };
+}
+
+function scrollToYear(index) {
+  const container = getContentContainer();
+  if (!container) return { success: false };
+
+  const all = Array.from(container.querySelectorAll('[data-htr-year-ids]'));
+  const target = all.find(el => {
+    const ids = (el.dataset.htrYearIds || '').split(',').map(Number);
+    return ids.includes(Number(index));
+  });
+  if (!target) return { success: false };
+
+  document.querySelectorAll('.htr-highlight-broken').forEach(el => {
+    el.style.removeProperty('outline');
+    el.style.removeProperty('outline-offset');
+    el.style.removeProperty('background-color');
+    el.classList.remove('htr-highlight-broken');
+  });
+
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.style.outline = '3px solid #fbbf24';
+  target.style.outlineOffset = '3px';
+  target.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
+  target.classList.add('htr-highlight-broken');
+
+  setTimeout(() => {
+    target.style.removeProperty('outline');
+    target.style.removeProperty('outline-offset');
+    target.style.removeProperty('background-color');
+    target.classList.remove('htr-highlight-broken');
+  }, 5000);
+
+  return { success: true };
+}
+
 function scrollToH2(index) {
   const container = getContentContainer();
   if (!container) return { success: false };
@@ -393,7 +595,17 @@ function scrollToH2(index) {
   return { success: true };
 }
 
-function scrollToLink(url) {
+function normalizeUrlForMatch(u) {
+  try {
+    const parsed = new URL(u);
+    let path = parsed.pathname.replace(/\/$/, '') || '/';
+    return parsed.origin + path + (parsed.search || '');
+  } catch {
+    return u;
+  }
+}
+
+function scrollToLink(url, textHint) {
   const container = getContentContainer();
   if (!container) return { success: false };
 
@@ -404,8 +616,26 @@ function scrollToLink(url) {
     el.classList.remove('htr-highlight-broken');
   });
 
-  const anchor = container.querySelector(`a[href="${CSS.escape(url)}"]`)
-    || container.querySelector(`a[href$="${CSS.escape(url)}"]`);
+  const normTarget = normalizeUrlForMatch(url);
+  const anchors = Array.from(container.querySelectorAll('a[href]'));
+  let anchor = anchors.find(a => {
+    try {
+      if (a.href === url) return true;
+      if (new URL(a.href).href === new URL(url).href) return true;
+      if (normalizeUrlForMatch(a.href) === normTarget) return true;
+      return false;
+    } catch {
+      return a.href === url;
+    }
+  });
+
+  if (!anchor && textHint) {
+    const hint = String(textHint).trim().toLowerCase().substring(0, 60);
+    anchor = anchors.find(a => {
+      const t = (a.textContent || '').trim().toLowerCase().substring(0, 60);
+      return t && (t === hint || t.includes(hint) || hint.includes(t));
+    });
+  }
 
   if (!anchor) return { success: false };
 
@@ -437,11 +667,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'checkAnchorLinks') {
     sendResponse(checkAnchorLinks());
   } else if (request.action === 'scrollToLink') {
-    sendResponse(scrollToLink(request.url));
+    sendResponse(scrollToLink(request.url, request.text));
   } else if (request.action === 'checkH2Structure') {
     sendResponse(checkH2Structure());
   } else if (request.action === 'scrollToH2') {
     sendResponse(scrollToH2(request.index));
+  } else if (request.action === 'checkYearInContent') {
+    sendResponse(checkYearInContent());
+  } else if (request.action === 'scrollToYear') {
+    sendResponse(scrollToYear(request.index));
   }
   return true;
 });

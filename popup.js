@@ -30,7 +30,14 @@ const h2Broken = document.getElementById('h2-broken');
 const h2Total = document.getElementById('h2-total');
 const h2Results = document.getElementById('h2-results');
 
+const yearSummary = document.getElementById('year-summary');
+const yearCount = document.getElementById('year-count');
+const yearValue = document.getElementById('year-value');
+const yearResults = document.getElementById('year-results');
+
 btnToggle.addEventListener('click', toggleScan);
+
+yearValue.textContent = new Date().getFullYear();
 
 init();
 
@@ -40,6 +47,7 @@ async function init() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     await renderAnchorResults(tab.id);
     await renderH2Results(tab.id);
+    await renderYearResults(tab.id);
     await renderLinkResults(tab.id);
     await checkIfStillRunning(tab.id);
   }
@@ -144,6 +152,53 @@ async function renderAnchorResults(tabId) {
   anchorSummary.classList.remove('hidden');
 }
 
+async function renderYearResults(tabId) {
+  const data = await chrome.storage.local.get(`yearResults_${tabId}`);
+  const saved = data[`yearResults_${tabId}`];
+  if (!saved) return;
+
+  yearValue.textContent = saved.currentYear || new Date().getFullYear();
+  yearCount.textContent = saved.total;
+
+  yearResults.innerHTML = '';
+  if (saved.total === 0) {
+    yearSummary.classList.remove('hidden');
+    const div = document.createElement('div');
+    div.className = 'link-item link-ok';
+    div.innerHTML = `
+      <span class="link-status-badge ok">ไม่มี</span>
+      <div class="link-info">
+        <div class="link-text">ไม่พบเลขปีอื่นนอกจากปี ${saved.currentYear} ในเนื้อหา</div>
+        <div class="link-url">ทุกตำแหน่งที่พบปีเป็นปีปัจจุบันเรียบร้อยแล้ว</div>
+      </div>
+    `;
+    yearResults.appendChild(div);
+    return;
+  }
+
+  saved.results.forEach(r => appendYearResult(r));
+  yearSummary.classList.remove('hidden');
+}
+
+function appendYearResult(entry) {
+  const div = document.createElement('div');
+  div.className = 'link-item link-broken';
+  div.innerHTML = `
+    <span class="link-status-badge broken">ปี ${escapeHTML(entry.year)}</span>
+    <div class="link-info">
+      <div class="link-text">${escapeHTML(entry.context)}</div>
+      <div class="link-url">ใน &lt;${entry.tagName}&gt;</div>
+    </div>
+  `;
+  div.style.cursor = 'pointer';
+  div.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const res = await chrome.tabs.sendMessage(tab.id, { action: 'scrollToYear', index: entry.index });
+    if (res?.success) await chrome.tabs.update(tab.id, { active: true });
+  });
+  yearResults.appendChild(div);
+}
+
 async function renderH2Results(tabId) {
   const data = await chrome.storage.local.get(`h2Results_${tabId}`);
   const saved = data[`h2Results_${tabId}`];
@@ -190,7 +245,8 @@ async function clearSavedResults(tabId) {
     `linkResults_${tabId}`,
     `linkProgress_${tabId}`,
     `anchorResults_${tabId}`,
-    `h2Results_${tabId}`
+    `h2Results_${tabId}`,
+    `yearResults_${tabId}`
   ]);
 }
 
@@ -228,6 +284,7 @@ async function toggleScan() {
     if (preRes && preRes.ready) {
       await renderH2Results(tab.id);
       await renderAnchorResults(tab.id);
+      await renderYearResults(tab.id);
     }
 
     const res = await chrome.tabs.sendMessage(tab.id, { action: 'activate' });
@@ -249,6 +306,8 @@ function clearAllResults() {
   anchorSummary.classList.add('hidden');
   h2Results.innerHTML = '';
   h2Summary.classList.add('hidden');
+  yearResults.innerHTML = '';
+  yearSummary.classList.add('hidden');
 }
 
 function appendLinkResult(entry, container) {
@@ -272,8 +331,16 @@ function appendLinkResult(entry, container) {
   if (!entry.ok) {
     div.style.cursor = 'pointer';
     div.addEventListener('click', async () => {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      await chrome.tabs.sendMessage(tab.id, { action: 'scrollToLink', url: entry.url });
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) return;
+        const res = await chrome.tabs.sendMessage(tab.id, { action: 'scrollToLink', url: entry.url, text: entry.text });
+        if (res?.success) {
+          await chrome.tabs.update(tab.id, { active: true });
+        }
+      } catch (err) {
+        console.error('scrollToLink failed:', err);
+      }
     });
   }
 

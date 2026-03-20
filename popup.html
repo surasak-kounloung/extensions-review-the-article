@@ -58,15 +58,28 @@
     </div>
 
     <div class="link-checker">
-      <div class="link-header">
-        <h3>ตรวจสอบลิงก์หัวข้อ (#)</h3>
+      <div class="link-header" style="margin-bottom: 5px;">
+        <h3>ตรวจสอบลิงก์สารบัญหรือหัวข้อ (#)</h3>
       </div>
+      <p class="checker-desc">ตรวจว่าลิงก์สารบัญหรือหัวข้อคลิกแล้ว Scroll ได้ไหม<br>แต่ไม่สามารถรู้ว่า Scroll ไปที่หัวข้อนั้น ๆ ถูกไหม</p>
       <div id="anchor-summary" class="link-summary hidden">
         <span class="link-stat ok"><span id="anchor-ok">0</span> OK</span>
         <span class="link-stat broken"><span id="anchor-broken">0</span> เสีย</span>
         <span class="link-stat total"><span id="anchor-total">0</span> ทั้งหมด</span>
       </div>
       <div id="anchor-results" class="link-results"></div>
+    </div>
+
+    <div class="link-checker">
+      <div class="link-header" style="margin-bottom: 5px;">
+        <h3>ตรวจสอบเลขปีที่ไม่ใช่ปีปัจจุบัน</h3>
+      </div>
+      <p class="checker-desc">ตรวจว่ามีเลขปีที่ไม่ใช่ปีปัจจุบันอยู่ในเนื้อหาตำแหน่งไหนบ้าง</p>
+      <div id="year-summary" class="link-summary hidden">
+        <span class="link-stat broken"><span id="year-count">0</span> ตำแหน่ง</span>
+        <span class="link-stat total">ปีปัจจุบัน <span id="year-value"></span></span>
+      </div>
+      <div id="year-results" class="link-results"></div>
     </div>
 
     <div class="link-checker">
