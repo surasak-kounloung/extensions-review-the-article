@@ -247,6 +247,11 @@ header {
   border-radius: 6px;
 }
 
+.link-stat.alert {
+  background: rgba(255, 243, 205, 0.1);
+  color: #856404;
+}
+
 .link-stat.ok {
   background: rgba(74, 222, 128, 0.1);
   color: #4ade80;
@@ -293,6 +298,12 @@ header {
   border: 1px solid #2a2a4a;
 }
 
+.link-item.link-alert {
+  border-color: rgba(255, 238, 186, 0.3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
 .link-item.link-broken {
   border-color: rgba(251, 113, 133, 0.3);
   cursor: pointer;
@@ -313,6 +324,11 @@ header {
   border-radius: 4px;
   white-space: nowrap;
   margin-top: 1px;
+}
+
+.link-status-badge.alert {
+  background: rgba(255, 243, 205, 0.15);
+  color: #856404;
 }
 
 .link-status-badge.ok {
@@ -342,7 +358,7 @@ header {
 
 .link-url {
   font-size: 10px;
-  color: #555;
+  color: #888;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

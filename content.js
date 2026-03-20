@@ -436,20 +436,31 @@ function checkH2Structure() {
     const num = index + 1;
 
     const prevEl = h2.previousElementSibling;
-    const hasPs2id = prevEl && prevEl.matches('div.wp-block-ps2id-block-target');
-
+    let hasPs2id = prevEl && prevEl.matches('div.wp-block-ps2id-block-target');
     let hasHr = false;
-    if (hasPs2id) {
-      const prevPrev = prevEl.previousElementSibling;
-      hasHr = prevPrev && prevPrev.matches('hr, .wp-block-separator');
-    } else if (prevEl) {
-      hasHr = prevEl.matches('hr, .wp-block-separator');
+    let inWrapper = false;
+
+    if (prevEl) {
+      if (hasPs2id) {
+        const prevPrev = prevEl.previousElementSibling;
+        hasHr = prevPrev && prevPrev.matches('hr, .wp-block-separator');
+      } else if (prevEl.matches('hr, .wp-block-separator')) {
+        hasHr = true;
+      } else if (prevEl.matches('div')) {
+        const innerHr = prevEl.querySelector('hr, .wp-block-separator');
+        const innerPs2id = prevEl.querySelector('div.wp-block-ps2id-block-target');
+        hasHr = !!innerHr;
+        hasPs2id = !!innerPs2id;
+        if (hasHr || hasPs2id) inWrapper = true;
+      }
     }
 
     let status, statusText;
     if (hasHr) {
       status = 'OK';
-      statusText = hasPs2id ? 'มี ps2id + hr ครบ' : 'มี <hr> ก่อนหน้า (ไม่มี ps2id)';
+      statusText = hasPs2id
+        ? (inWrapper ? 'มี ps2id + hr ครบ (ใน wrapper)' : 'มี ps2id + hr ครบ')
+        : 'มี <hr> ก่อนหน้า (ไม่มี ps2id)';
     } else if (hasPs2id && !hasHr) {
       status = 'NO HR';
       statusText = 'มี ps2id แต่ไม่มี <hr> ก่อนหน้า';
@@ -735,8 +746,18 @@ function scrollToLink(url, textHint) {
   return { success: true };
 }
 
+function hasContentContainer() {
+  const container = getContentContainer();
+  return {
+    hasContainer: !!container,
+    error: container ? null : 'ไม่พบ element ที่มี class "entry-content", "blog-wrapper" หรือ "cs-site-content" ในหน้าเว็บนี้ — ส่วนขยายนี้เหมาะกับหน้าเนื้อหา (เช่น WordPress)'
+  };
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'activate') {
+  if (request.action === 'hasContentContainer') {
+    sendResponse(hasContentContainer());
+  } else if (request.action === 'activate') {
     sendResponse(activate());
   } else if (request.action === 'deactivate') {
     sendResponse(deactivate());

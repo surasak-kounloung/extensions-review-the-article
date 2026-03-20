@@ -169,9 +169,9 @@ async function renderYearResults(tabId) {
   if (saved.total === 0 && currentYearResults.length === 0) {
     yearSummary.classList.remove('hidden');
     const div = document.createElement('div');
-    div.className = 'link-item link-ok';
+    div.className = 'link-item link-alert';
     div.innerHTML = `
-      <span class="link-status-badge ok">ไม่มี</span>
+      <span class="link-status-badge alert">ไม่มี</span>
       <div class="link-info">
         <div class="link-text">ไม่พบเลขปีในเนื้อหา</div>
         <div class="link-url">ไม่พบปี 19xx หรือ 20xx ในเนื้อหา</div>
@@ -184,9 +184,9 @@ async function renderYearResults(tabId) {
 
   if (saved.total === 0 && currentYearResults.length > 0) {
     const div = document.createElement('div');
-    div.className = 'link-item link-ok';
+    div.className = 'link-item link-alert';
     div.innerHTML = `
-      <span class="link-status-badge ok">ไม่มี</span>
+      <span class="link-status-badge alert">ไม่มี</span>
       <div class="link-info">
         <div class="link-text">ไม่พบเลขปีอื่นนอกจากปี ${saved.currentYear} ในเนื้อหา</div>
         <div class="link-url">ทุกตำแหน่งที่พบปีเป็นปีปัจจุบันเรียบร้อยแล้ว</div>
@@ -314,6 +314,18 @@ async function toggleScan() {
       showMessage('ปิดสแกนเรียบร้อยแล้ว', 'success');
     }
   } else {
+    let containerCheck;
+    try {
+      containerCheck = await chrome.tabs.sendMessage(tab.id, { action: 'hasContentContainer' });
+    } catch {
+      showMessage('ไม่สามารถตรวจสอบหน้าเว็บนี้ได้', 'error');
+      return;
+    }
+    if (!containerCheck?.hasContainer) {
+      showMessage(containerCheck?.error || 'ไม่พบ element ที่มี class "entry-content", "blog-wrapper" หรือ "cs-site-content" ในหน้าเว็บนี้', 'error');
+      return;
+    }
+
     setActiveUI();
     isScanning = true;
     showMessage('กำลังตรวจสอบโครงสร้าง...', 'success');
@@ -328,11 +340,14 @@ async function toggleScan() {
 
     const res = await chrome.tabs.sendMessage(tab.id, { action: 'activate' });
     if (res && res.error) {
-      showMessage(res.error, 'warning');
-    } else {
-      showMessage('เปิดสแกนเรียบร้อย — กำลังตรวจสอบลิงก์...', 'success');
+      setInactiveUI();
+      isScanning = false;
+      clearAllResults();
+      showMessage(res.error, 'error');
+      return;
     }
 
+    showMessage('เปิดสแกนเรียบร้อย — กำลังตรวจสอบลิงก์...', 'success');
     startPolling(tab.id);
   }
 }

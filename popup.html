@@ -72,19 +72,6 @@
 
     <div class="link-checker">
       <div class="link-header" style="margin-bottom: 5px;">
-        <h3>ตรวจสอบเลขปีที่ไม่ใช่ปีปัจจุบัน</h3>
-      </div>
-      <p class="checker-desc">ตรวจว่ามีเลขปีที่ไม่ใช่ปีปัจจุบันอยู่ในเนื้อหาตำแหน่งไหนบ้าง</p>
-      <div id="year-summary" class="link-summary hidden">
-        <span class="link-stat broken"><span id="year-count">0</span> ตำแหน่ง (ไม่ใช่ปีปัจจุบัน)</span>
-        <span class="link-stat ok"><span id="year-current-count">0</span> ตำแหน่ง (ปีปัจจุบัน)</span>
-        <span class="link-stat total">ปี <span id="year-value"></span></span>
-      </div>
-      <div id="year-results" class="link-results"></div>
-    </div>
-
-    <div class="link-checker">
-      <div class="link-header" style="margin-bottom: 5px;">
         <h3>ตรวจสอบเส้นคั่นก่อน H2</h3>
       </div>
       <p class="checker-desc">ตรวจว่าก่อน &lt;h2&gt; มีเส้นคั่น &lt;hr&gt; ไหม</p>
@@ -96,17 +83,19 @@
       <div id="h2-results" class="link-results"></div>
     </div>
 
-    <!-- <div class="legend">
-      <h3>สีหมวดหมู่แท็ก</h3>
-      <div class="legend-grid">
-        <span class="legend-item"><span class="legend-dot" style="background:#38bdf8"></span>โครงสร้าง</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span>ข้อความ</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#e879f9"></span>สื่อ</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span>ฟอร์ม</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#2dd4bf"></span>ตาราง</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#fb7185"></span>Semantic</span>
+    <div class="link-checker">
+      <div class="link-header" style="margin-bottom: 5px;">
+        <h3>ตรวจสอบเลขปีที่ไม่ใช่ปีปัจจุบัน</h3>
       </div>
-    </div> -->
+      <p class="checker-desc">ตรวจว่ามีเลขปีที่ไม่ใช่ปีปัจจุบันอยู่ในเนื้อหาตำแหน่งไหนบ้าง</p>
+      <div id="year-summary" class="link-summary hidden">
+        <span class="link-stat broken"><span id="year-count">0</span> ตำแหน่ง (ไม่ใช่ปีปัจจุบัน)</span>
+        <span class="link-stat ok"><span id="year-current-count">0</span> ตำแหน่ง (ปีปัจจุบัน)</span>
+        <span class="link-stat total">ปี <span id="year-value"></span></span>
+      </div>
+      <div id="year-results" class="link-results"></div>
+    </div>
+    
   </div>
 
   <script src="popup.js"></script>
