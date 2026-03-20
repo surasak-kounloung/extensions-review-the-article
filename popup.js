@@ -32,6 +32,7 @@ const h2Results = document.getElementById('h2-results');
 
 const yearSummary = document.getElementById('year-summary');
 const yearCount = document.getElementById('year-count');
+const yearCurrentCount = document.getElementById('year-current-count');
 const yearValue = document.getElementById('year-value');
 const yearResults = document.getElementById('year-results');
 
@@ -159,10 +160,29 @@ async function renderYearResults(tabId) {
 
   yearValue.textContent = saved.currentYear || new Date().getFullYear();
   yearCount.textContent = saved.total;
+  yearCurrentCount.textContent = saved.currentYearCount ?? 0;
 
   yearResults.innerHTML = '';
-  if (saved.total === 0) {
+  const currentYearResults = saved.currentYearResults || [];
+  const otherResults = saved.results || [];
+
+  if (saved.total === 0 && currentYearResults.length === 0) {
     yearSummary.classList.remove('hidden');
+    const div = document.createElement('div');
+    div.className = 'link-item link-ok';
+    div.innerHTML = `
+      <span class="link-status-badge ok">ไม่มี</span>
+      <div class="link-info">
+        <div class="link-text">ไม่พบเลขปีในเนื้อหา</div>
+        <div class="link-url">ไม่พบปี 19xx หรือ 20xx ในเนื้อหา</div>
+      </div>
+    `;
+    yearResults.appendChild(div);
+    yearSummary.classList.remove('hidden');
+    return;
+  }
+
+  if (saved.total === 0 && currentYearResults.length > 0) {
     const div = document.createElement('div');
     div.className = 'link-item link-ok';
     div.innerHTML = `
@@ -173,11 +193,30 @@ async function renderYearResults(tabId) {
       </div>
     `;
     yearResults.appendChild(div);
-    return;
   }
 
-  saved.results.forEach(r => appendYearResult(r));
+  otherResults.forEach(r => appendYearResult(r));
+  currentYearResults.forEach(r => appendCurrentYearResult(r));
   yearSummary.classList.remove('hidden');
+}
+
+function appendCurrentYearResult(entry) {
+  const div = document.createElement('div');
+  div.className = 'link-item link-ok';
+  div.innerHTML = `
+    <span class="link-status-badge ok">ปี ${escapeHTML(entry.year)}</span>
+    <div class="link-info">
+      <div class="link-text">${escapeHTML(entry.context)}</div>
+      <div class="link-url">ใน &lt;${entry.tagName}&gt;</div>
+    </div>
+  `;
+  div.style.cursor = 'pointer';
+  div.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const res = await chrome.tabs.sendMessage(tab.id, { action: 'scrollToCurrentYear', index: entry.index });
+    if (res?.success) await chrome.tabs.update(tab.id, { active: true });
+  });
+  yearResults.appendChild(div);
 }
 
 function appendYearResult(entry) {

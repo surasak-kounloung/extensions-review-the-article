@@ -482,10 +482,14 @@ function checkYearInContent() {
   const currentYearStr = String(currentYear);
   const results = [];
   let matchIndex = 0;
+  let currentYearCount = 0;
 
   container.querySelectorAll('[data-htr-year-ids]').forEach(el => delete el.dataset.htrYearIds);
+  container.querySelectorAll('[data-htr-current-year-ids]').forEach(el => delete el.dataset.htrCurrentYearIds);
 
   const yearRegex = /\b(19\d{2}|20\d{2})\b/g;
+  const currentYearResults = [];
+  let currentYearIndex = 0;
 
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
   let textNode;
@@ -499,7 +503,33 @@ function checkYearInContent() {
     while ((match = yearRegex.exec(text)) !== null) {
       const yearStr = match[0];
       const yearNum = parseInt(yearStr, 10);
-      if (yearNum === currentYear) continue;
+      if (yearNum === currentYear) {
+        currentYearIndex++;
+        currentYearCount++;
+        const pos = match.index;
+        const start = Math.max(0, pos - 30);
+        const end = Math.min(text.length, pos + yearStr.length + 30);
+        const context = (start > 0 ? '...' : '') + text.substring(start, end) + (end < text.length ? '...' : '');
+        const clone = parent.cloneNode(true);
+        clone.querySelectorAll('.htr-tag-badge').forEach(b => b.remove());
+        const parentText = clone.textContent.trim().substring(0, 100);
+
+        if (parent.dataset.htrCurrentYearIds) {
+          parent.dataset.htrCurrentYearIds += ',' + currentYearIndex;
+        } else {
+          parent.dataset.htrCurrentYearIds = String(currentYearIndex);
+        }
+
+        currentYearResults.push({
+          index: currentYearIndex,
+          year: yearStr,
+          context: (context || parentText).trim(),
+          tagName: parent.tagName.toLowerCase(),
+          isCurrentYear: true,
+          status: 'ปีปัจจุบัน'
+        });
+        continue;
+      }
 
       matchIndex++;
       const pos = match.index;
@@ -527,7 +557,7 @@ function checkYearInContent() {
     }
   }
 
-  return { success: true, results, currentYear: currentYearStr };
+  return { success: true, results, currentYearResults, currentYear: currentYearStr, currentYearCount };
 }
 
 function scrollToYear(index) {
@@ -552,6 +582,40 @@ function scrollToYear(index) {
   target.style.outline = '3px solid #fbbf24';
   target.style.outlineOffset = '3px';
   target.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
+  target.classList.add('htr-highlight-broken');
+
+  setTimeout(() => {
+    target.style.removeProperty('outline');
+    target.style.removeProperty('outline-offset');
+    target.style.removeProperty('background-color');
+    target.classList.remove('htr-highlight-broken');
+  }, 5000);
+
+  return { success: true };
+}
+
+function scrollToCurrentYear(index) {
+  const container = getContentContainer();
+  if (!container) return { success: false };
+
+  const all = Array.from(container.querySelectorAll('[data-htr-current-year-ids]'));
+  const target = all.find(el => {
+    const ids = (el.dataset.htrCurrentYearIds || '').split(',').map(Number);
+    return ids.includes(Number(index));
+  });
+  if (!target) return { success: false };
+
+  document.querySelectorAll('.htr-highlight-broken').forEach(el => {
+    el.style.removeProperty('outline');
+    el.style.removeProperty('outline-offset');
+    el.style.removeProperty('background-color');
+    el.classList.remove('htr-highlight-broken');
+  });
+
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.style.outline = '3px solid #22c55e';
+  target.style.outlineOffset = '3px';
+  target.style.backgroundColor = 'rgba(34, 197, 94, 0.15)';
   target.classList.add('htr-highlight-broken');
 
   setTimeout(() => {
@@ -616,18 +680,34 @@ function scrollToLink(url, textHint) {
     el.classList.remove('htr-highlight-broken');
   });
 
-  const normTarget = normalizeUrlForMatch(url);
   const anchors = Array.from(container.querySelectorAll('a[href]'));
-  let anchor = anchors.find(a => {
-    try {
-      if (a.href === url) return true;
-      if (new URL(a.href).href === new URL(url).href) return true;
-      if (normalizeUrlForMatch(a.href) === normTarget) return true;
-      return false;
-    } catch {
-      return a.href === url;
-    }
-  });
+  let anchor = null;
+
+  const isAnchorLink = (u) => typeof u === 'string' && (u === '#' || u.startsWith('#'));
+  const rawHref = String(url || '').trim();
+  const normHref = rawHref.startsWith('#') ? rawHref : '#' + rawHref;
+
+  if (isAnchorLink(rawHref) || isAnchorLink(normHref)) {
+    anchor = anchors.find(a => {
+      const aRaw = a.getAttribute('href') || '';
+      const aNorm = aRaw.startsWith('#') ? aRaw : (aRaw ? '#' + aRaw : '');
+      return aNorm === normHref || aRaw === rawHref;
+    });
+  }
+
+  if (!anchor) {
+    const normTarget = normalizeUrlForMatch(url);
+    anchor = anchors.find(a => {
+      try {
+        if (a.href === url) return true;
+        if (new URL(a.href).href === new URL(url).href) return true;
+        if (normalizeUrlForMatch(a.href) === normTarget) return true;
+        return false;
+      } catch {
+        return a.href === url;
+      }
+    });
+  }
 
   if (!anchor && textHint) {
     const hint = String(textHint).trim().toLowerCase().substring(0, 60);
@@ -676,6 +756,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(checkYearInContent());
   } else if (request.action === 'scrollToYear') {
     sendResponse(scrollToYear(request.index));
+  } else if (request.action === 'scrollToCurrentYear') {
+    sendResponse(scrollToCurrentYear(request.index));
   }
   return true;
 });

@@ -72,20 +72,14 @@ async function runPreChecksAndStart(tabId) {
 
     try {
       const yearRes = await chrome.tabs.sendMessage(tabId, { action: 'checkYearInContent' });
-      if (yearRes && yearRes.success && yearRes.results.length > 0) {
+      if (yearRes && yearRes.success) {
         await chrome.storage.local.set({
           [`yearResults_${tabId}`]: {
-            results: yearRes.results,
-            currentYear: yearRes.currentYear,
-            total: yearRes.results.length
-          }
-        });
-      } else if (yearRes && yearRes.success) {
-        await chrome.storage.local.set({
-          [`yearResults_${tabId}`]: {
-            results: [],
+            results: yearRes.results || [],
+            currentYearResults: yearRes.currentYearResults || [],
             currentYear: yearRes.currentYear || String(new Date().getFullYear()),
-            total: 0
+            total: (yearRes.results || []).length,
+            currentYearCount: yearRes.currentYearCount ?? 0
           }
         });
       }
