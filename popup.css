@@ -171,17 +171,99 @@ header {
 }
 
 .link-header h3 {
-  font-size: 12px;
+  font-size: 14px;
   color: #a7c3e7;
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
 
 .checker-desc {
-  font-size: 10px;
+  font-size: 11px;
   color: #aaa;
   line-height: 1.5;
   margin-bottom: 15px;
+}
+
+.branch-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.branch-input-row label {
+  font-size: 11px;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+/* Number Stepper - แบบ 3 ส่วน (ลบ | ตัวเลข | บวก) */
+.number-stepper {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  background: #0f0f1a;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stepper-btn {
+  flex: 0 0 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 18px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.stepper-btn:hover {
+  background: rgba(124, 111, 247, 0.15);
+  color: #a7c3e7;
+}
+
+.stepper-btn:active {
+  background: rgba(124, 111, 247, 0.25);
+}
+
+.number-stepper input {
+  min-width: 0;
+  width: 100%;
+  max-width: 50px;
+  padding: 4px 10px 6px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid #2a2a4a;
+  border-right: 1px solid #2a2a4a;
+  color: #e0e0e0;
+  font-size: 12px;
+  font-family: "Sarabun", sans-serif;
+  text-align: center;
+}
+
+.number-stepper input:focus {
+  outline: none;
+}
+
+.number-stepper input::-webkit-outer-spin-button,
+.number-stepper input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  margin: 0;
+}
+
+.number-stepper input[type="number"] {
+  appearance: textfield;
+  -webkit-appearance: textfield;
+  -moz-appearance: textfield;
 }
 
 .btn-check {
@@ -300,7 +382,7 @@ header {
 
 .link-item.link-alert {
   border-color: rgba(255, 238, 186, 0.3);
-  cursor: pointer;
+  cursor: default;
   transition: all 0.15s ease;
 }
 

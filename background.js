@@ -2,7 +2,7 @@ const checkState = {};
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startLinkCheck') {
-    runPreChecksAndStart(request.tabId).then(sendResponse);
+    runPreChecksAndStart(request.tabId, request.branchNumber).then(sendResponse);
     return true;
   } else if (request.action === 'cancelLinkCheck') {
     if (checkState[request.tabId]) {
@@ -15,7 +15,85 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
+function getUrlScheme(url) {
+  const m = /^([a-z][a-z0-9+.-]*):/i.exec(String(url).trim());
+  return m ? m[1].toLowerCase() : '';
+}
+
+/** tel:/sms: ไม่มี HTTP endpoint — ตรวจเฉพาะรูปแบบ (ความยาวตัวเลข) */
+function checkTelScheme(url) {
+  const rest = String(url).replace(/^tel:/i, '').split(/[?#]/)[0];
+  const decoded = decodeURIComponent(rest.trim());
+  const digits = decoded.replace(/\D/g, '');
+  if (digits.length < 5) {
+    return { status: 0, ok: false, statusText: 'รูปแบบเบอร์โทรไม่ถูกต้อง', checkType: 'scheme' };
+  }
+  return { status: 0, ok: true, statusText: 'OK', checkType: 'scheme' };
+}
+
+function checkMailtoScheme(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'mailto:') {
+      return { status: 0, ok: false, statusText: 'ไม่ใช่ mailto:', checkType: 'scheme' };
+    }
+    const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+    const first = path.split(',')[0].trim();
+    if (!first) {
+      return { status: 0, ok: false, statusText: 'mailto: ไม่มีที่อยู่อีเมล', checkType: 'scheme' };
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(first)) {
+      return { status: 0, ok: false, statusText: 'รูปแบบอีเมลไม่ถูกต้อง', checkType: 'scheme' };
+    }
+    return { status: 0, ok: true, statusText: 'OK', checkType: 'scheme' };
+  } catch {
+    return { status: 0, ok: false, statusText: 'ไม่สามารถ parse mailto:', checkType: 'scheme' };
+  }
+}
+
+function checkSmsScheme(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'sms:') {
+      return { status: 0, ok: false, statusText: 'ไม่ใช่ sms:', checkType: 'scheme' };
+    }
+    let raw = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+    if (!raw) raw = u.hostname || '';
+    if (!raw) {
+      return { status: 0, ok: false, statusText: 'sms: ไม่มีเบอร์ผู้รับ', checkType: 'scheme' };
+    }
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length < 5) {
+      return { status: 0, ok: false, statusText: 'รูปแบบเบอร์ SMS ไม่ถูกต้อง', checkType: 'scheme' };
+    }
+    return { status: 0, ok: true, statusText: 'OK', checkType: 'scheme' };
+  } catch {
+    const m = /^sms:(.+)$/i.exec(String(url).trim());
+    if (!m) {
+      return { status: 0, ok: false, statusText: 'ไม่สามารถ parse sms:', checkType: 'scheme' };
+    }
+    const part = decodeURIComponent(m[1].split(/[?#]/)[0]);
+    const digits = part.replace(/\D/g, '');
+    if (digits.length < 5) {
+      return { status: 0, ok: false, statusText: 'รูปแบบเบอร์ SMS ไม่ถูกต้อง', checkType: 'scheme' };
+    }
+    return { status: 0, ok: true, statusText: 'OK', checkType: 'scheme' };
+  }
+}
+
 async function checkLink(url) {
+  const scheme = getUrlScheme(url);
+  if (scheme === 'tel') {
+    return { url, ...checkTelScheme(url) };
+  }
+  if (scheme === 'mailto') {
+    return { url, ...checkMailtoScheme(url) };
+  }
+  if (scheme === 'sms') {
+    return { url, ...checkSmsScheme(url) };
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -30,19 +108,19 @@ async function checkLink(url) {
     clearTimeout(timeout);
 
     if (res.type === 'opaque') {
-      return { url, status: 0, ok: true, statusText: 'OK (no-cors)' };
+      return { url, status: 0, ok: true, statusText: 'OK (no-cors)', checkType: 'http' };
     }
 
-    return { url, status: res.status, ok: res.ok, statusText: res.statusText };
+    return { url, status: res.status, ok: res.ok, statusText: res.statusText, checkType: 'http' };
   } catch (err) {
     if (err.name === 'AbortError') {
-      return { url, status: 0, ok: false, statusText: 'Timeout' };
+      return { url, status: 0, ok: false, statusText: 'Timeout', checkType: 'http' };
     }
-    return { url, status: 0, ok: false, statusText: err.message };
+    return { url, status: 0, ok: false, statusText: err.message, checkType: 'http' };
   }
 }
 
-async function runPreChecksAndStart(tabId) {
+async function runPreChecksAndStart(tabId, branchNumber) {
   checkState[tabId] = { running: true, cancelled: false };
 
   try {
@@ -85,6 +163,25 @@ async function runPreChecksAndStart(tabId) {
       }
     } catch {
       // ปีอาจตรวจสอบไม่ได้ (ไม่มี container หรือ content script error)
+    }
+
+    try {
+      const branchRes = await chrome.tabs.sendMessage(tabId, { action: 'checkBranchInContent', expectedBranch: branchNumber });
+      if (branchRes && branchRes.success && branchRes.results) {
+        const br = branchRes.results;
+        let bOk = 0, bBroken = 0;
+        br.forEach(r => { if (r.ok) bOk++; else bBroken++; });
+        await chrome.storage.local.set({
+          [`branchResults_${tabId}`]: {
+            results: br,
+            okCount: bOk,
+            brokenCount: bBroken,
+            total: br.length
+          }
+        });
+      }
+    } catch {
+      // สาขาอาจตรวจสอบไม่ได้
     }
 
     const linksRes = await chrome.tabs.sendMessage(tabId, { action: 'collectLinks' });

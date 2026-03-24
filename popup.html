@@ -95,6 +95,27 @@
       </div>
       <div id="year-results" class="link-results"></div>
     </div>
+
+    <div class="link-checker">
+      <div class="link-header" style="margin-bottom: 5px;">
+        <h3>ตรวจสอบจำนวนสาขา</h3>
+      </div>
+      <p class="checker-desc" style="margin-bottom: 5px;">ตรวจว่ามีจำนวนสาขาในเนื้อหา และตรงกับจำนวนที่ระบุไหม</p>
+      <div class="branch-input-row">
+        <label for="branch-input">จำนวนสาขาปัจจุบัน:</label>
+        <div class="number-stepper">
+          <button type="button" class="stepper-btn stepper-minus" aria-label="ลดลง">−</button>
+          <input type="number" id="branch-input" min="0" value="32">
+          <button type="button" class="stepper-btn stepper-plus" aria-label="เพิ่ม">+</button>
+        </div>
+      </div>
+      <div id="branch-summary" class="link-summary hidden">
+        <span class="link-stat ok"><span id="branch-ok">0</span> ตรง</span>
+        <span class="link-stat broken"><span id="branch-broken">0</span> ไม่ตรง</span>
+        <span class="link-stat total"><span id="branch-total">0</span> ทั้งหมด</span>
+      </div>
+      <div id="branch-results" class="link-results"></div>
+    </div>
     
   </div>
 

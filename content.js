@@ -373,6 +373,9 @@ function deactivate() {
     delete el.dataset.htrYearMatch;
     el.classList.remove('htr-year-matched');
   });
+  document.querySelectorAll('[data-htr-branch-ids]').forEach(el => {
+    delete el.dataset.htrBranchIds;
+  });
 
   document.querySelectorAll('[data-htr-orig-pos]').forEach(el => {
     el.style.position = el.dataset.htrOrigPos || '';
@@ -440,7 +443,7 @@ function checkAnchorLinks() {
       text,
       ok: !!targetEl,
       status: targetEl ? 'OK' : 'NOT FOUND',
-      statusText: targetEl ? 'พบ element เป้าหมาย' : 'ไม่พบ element id="' + targetId + '"'
+      statusText: targetEl ? 'พบ id' : 'id="' + targetId + '"'
     });
   });
 
@@ -666,6 +669,95 @@ function scrollToCurrentYear(index) {
   return { success: true };
 }
 
+function checkBranchInContent(expectedBranch) {
+  const container = getContentContainer();
+  if (!container) {
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
+  }
+
+  const expected = expectedBranch != null ? Number(expectedBranch) : null;
+  const results = [];
+  let matchIndex = 0;
+
+  container.querySelectorAll('[data-htr-branch-ids]').forEach(el => delete el.dataset.htrBranchIds);
+
+  const branchRegex = /(\d+)\s*สาขา/g;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+  let textNode;
+  while ((textNode = walker.nextNode())) {
+    const parent = textNode.parentElement;
+    if (!parent || SKIP_TAGS.includes(parent.tagName.toLowerCase())) continue;
+
+    const text = textNode.textContent;
+    let match;
+    branchRegex.lastIndex = 0;
+    while ((match = branchRegex.exec(text)) !== null) {
+      matchIndex++;
+      const foundNum = parseInt(match[1], 10);
+      const ok = expected != null ? foundNum === expected : true;
+      const pos = match.index;
+      const start = Math.max(0, pos - 30);
+      const end = Math.min(text.length, pos + match[0].length + 30);
+      const context = (start > 0 ? '...' : '') + text.substring(start, end) + (end < text.length ? '...' : '');
+      const clone = parent.cloneNode(true);
+      clone.querySelectorAll('.htr-tag-badge').forEach(b => b.remove());
+      const parentText = clone.textContent.trim().substring(0, 100);
+
+      if (parent.dataset.htrBranchIds) {
+        parent.dataset.htrBranchIds += ',' + matchIndex;
+      } else {
+        parent.dataset.htrBranchIds = String(matchIndex);
+      }
+
+      results.push({
+        index: matchIndex,
+        foundNum,
+        expectedNum: expected,
+        context: (context || parentText).trim(),
+        tagName: parent.tagName.toLowerCase(),
+        ok,
+        status: expected == null ? 'พบ' : (ok ? 'ถูกต้อง' : 'ไม่ตรง')
+      });
+    }
+  }
+
+  return { success: true, results, expectedBranch: expected };
+}
+
+function scrollToBranch(index) {
+  const container = getContentContainer();
+  if (!container) return { success: false };
+
+  const all = Array.from(container.querySelectorAll('[data-htr-branch-ids]'));
+  const target = all.find(el => {
+    const ids = (el.dataset.htrBranchIds || '').split(',').map(Number);
+    return ids.includes(Number(index));
+  });
+  if (!target) return { success: false };
+
+  document.querySelectorAll('.htr-highlight-broken').forEach(el => {
+    el.style.removeProperty('outline');
+    el.style.removeProperty('outline-offset');
+    el.style.removeProperty('background-color');
+    el.classList.remove('htr-highlight-broken');
+  });
+
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.style.outline = '3px solid #fbbf24';
+  target.style.outlineOffset = '3px';
+  target.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
+  target.classList.add('htr-highlight-broken');
+
+  setTimeout(() => {
+    target.style.removeProperty('outline');
+    target.style.removeProperty('outline-offset');
+    target.style.removeProperty('background-color');
+    target.classList.remove('htr-highlight-broken');
+  }, 5000);
+
+  return { success: true };
+}
+
 function scrollToH2(index) {
   const container = getContentContainer();
   if (!container) return { success: false };
@@ -806,6 +898,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(scrollToYear(request.index));
   } else if (request.action === 'scrollToCurrentYear') {
     sendResponse(scrollToCurrentYear(request.index));
+  } else if (request.action === 'checkBranchInContent') {
+    sendResponse(checkBranchInContent(request.expectedBranch));
+  } else if (request.action === 'scrollToBranch') {
+    sendResponse(scrollToBranch(request.index));
   }
   return true;
 });

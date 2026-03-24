@@ -36,7 +36,29 @@ const yearCurrentCount = document.getElementById('year-current-count');
 const yearValue = document.getElementById('year-value');
 const yearResults = document.getElementById('year-results');
 
+const branchInput = document.getElementById('branch-input');
+const stepperMinus = document.querySelector('.stepper-minus');
+const stepperPlus = document.querySelector('.stepper-plus');
+const branchSummary = document.getElementById('branch-summary');
+const branchOk = document.getElementById('branch-ok');
+const branchBroken = document.getElementById('branch-broken');
+const branchTotal = document.getElementById('branch-total');
+const branchResults = document.getElementById('branch-results');
+
 btnToggle.addEventListener('click', toggleScan);
+
+if (stepperMinus) {
+  stepperMinus.addEventListener('click', () => {
+    const val = parseInt(branchInput.value, 10) || 0;
+    branchInput.value = Math.max(0, val - 1);
+  });
+}
+if (stepperPlus) {
+  stepperPlus.addEventListener('click', () => {
+    const val = parseInt(branchInput.value, 10) || 0;
+    branchInput.value = val + 1;
+  });
+}
 
 yearValue.textContent = new Date().getFullYear();
 
@@ -49,6 +71,7 @@ async function init() {
     await renderAnchorResults(tab.id);
     await renderH2Results(tab.id);
     await renderYearResults(tab.id);
+    await renderBranchResults(tab.id);
     await renderLinkResults(tab.id);
     await checkIfStillRunning(tab.id);
   }
@@ -238,6 +261,69 @@ function appendYearResult(entry) {
   yearResults.appendChild(div);
 }
 
+async function renderBranchResults(tabId) {
+  const data = await chrome.storage.local.get(`branchResults_${tabId}`);
+  const saved = data[`branchResults_${tabId}`];
+  if (!saved) return;
+
+  branchOk.textContent = saved.okCount ?? 0;
+  branchBroken.textContent = saved.brokenCount ?? 0;
+  branchTotal.textContent = saved.total ?? 0;
+
+  branchResults.innerHTML = '';
+  const results = saved.results || [];
+
+  if (results.length === 0) {
+    branchOk.textContent = '0';
+    branchBroken.textContent = '0';
+    branchTotal.textContent = '0';
+    branchSummary.classList.remove('hidden');
+    const div = document.createElement('div');
+    div.className = 'link-item link-alert';
+    div.innerHTML = `
+      <span class="link-status-badge alert">ไม่มี</span>
+      <div class="link-info">
+        <div class="link-text">ไม่พบรูปแบบ "X สาขา" ในเนื้อหา</div>
+        <div class="link-url">ไม่มีข้อความเช่น "32 สาขา" ในเนื้อหา</div>
+      </div>
+    `;
+    branchResults.appendChild(div);
+    return;
+  }
+
+  results.filter(r => !r.ok).forEach(r => appendBranchResult(r));
+  results.filter(r => r.ok).forEach(r => appendBranchResult(r));
+  branchSummary.classList.remove('hidden');
+}
+
+function appendBranchResult(entry) {
+  const div = document.createElement('div');
+  div.className = `link-item ${entry.ok ? 'link-ok' : 'link-broken'}`;
+
+  const statusLabel = entry.expectedNum == null
+    ? `<span class="link-status-badge ok">${entry.foundNum} สาขา - พบ</span>`
+    : entry.ok
+      ? `<span class="link-status-badge ok">${entry.foundNum} สาขา - ถูกต้อง</span>`
+      : `<span class="link-status-badge broken">${entry.foundNum} สาขา - ควรเป็น ${entry.expectedNum}</span>`;
+
+  div.innerHTML = `
+    ${statusLabel}
+    <div class="link-info">
+      <div class="link-text">${escapeHTML(entry.context)}</div>
+      <div class="link-url">ใน &lt;${entry.tagName}&gt;</div>
+    </div>
+  `;
+
+  div.style.cursor = 'pointer';
+  div.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const res = await chrome.tabs.sendMessage(tab.id, { action: 'scrollToBranch', index: entry.index });
+    if (res?.success) await chrome.tabs.update(tab.id, { active: true });
+  });
+
+  branchResults.appendChild(div);
+}
+
 async function renderH2Results(tabId) {
   const data = await chrome.storage.local.get(`h2Results_${tabId}`);
   const saved = data[`h2Results_${tabId}`];
@@ -285,7 +371,8 @@ async function clearSavedResults(tabId) {
     `linkProgress_${tabId}`,
     `anchorResults_${tabId}`,
     `h2Results_${tabId}`,
-    `yearResults_${tabId}`
+    `yearResults_${tabId}`,
+    `branchResults_${tabId}`
   ]);
 }
 
@@ -330,12 +417,15 @@ async function toggleScan() {
     isScanning = true;
     showMessage('กำลังตรวจสอบโครงสร้าง...', 'success');
 
-    const preRes = await chrome.runtime.sendMessage({ action: 'startLinkCheck', tabId: tab.id });
+    const parsed = parseInt(branchInput.value, 10);
+    const branchNum = (branchInput.value.trim() === '' || isNaN(parsed)) ? null : parsed;
+    const preRes = await chrome.runtime.sendMessage({ action: 'startLinkCheck', tabId: tab.id, branchNumber: branchNum });
 
     if (preRes && preRes.ready) {
       await renderH2Results(tab.id);
       await renderAnchorResults(tab.id);
       await renderYearResults(tab.id);
+      await renderBranchResults(tab.id);
     }
 
     const res = await chrome.tabs.sendMessage(tab.id, { action: 'activate' });
@@ -362,15 +452,29 @@ function clearAllResults() {
   h2Summary.classList.add('hidden');
   yearResults.innerHTML = '';
   yearSummary.classList.add('hidden');
+  branchResults.innerHTML = '';
+  branchSummary.classList.add('hidden');
 }
 
 function appendLinkResult(entry, container) {
   const div = document.createElement('div');
   div.className = `link-item ${entry.ok ? 'link-ok' : 'link-broken'}`;
 
+  /** tel:/mailto:/sms: ตรวจแค่รูปแบบ — แสดงข้อความจาก statusText แทนรหัส HTTP */
+  let badgeInner;
+  if (entry.ok) {
+    badgeInner = entry.checkType === 'scheme'
+      ? escapeHTML(entry.statusText)
+      : (entry.status != null ? String(entry.status) : 'OK');
+  } else {
+    badgeInner = entry.checkType === 'scheme'
+      ? escapeHTML(entry.statusText)
+      : `${entry.status || 'ERR'} ${entry.statusText || ''}`;
+  }
+
   const statusLabel = entry.ok
-    ? `<span class="link-status-badge ok">${entry.status || 'OK'}</span>`
-    : `<span class="link-status-badge broken">${entry.status || 'ERR'} ${entry.statusText || ''}</span>`;
+    ? `<span class="link-status-badge ok">${badgeInner}</span>`
+    : `<span class="link-status-badge broken">${badgeInner}</span>`;
 
   const text = entry.text || '(ไม่มีข้อความ)';
 
