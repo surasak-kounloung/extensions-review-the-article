@@ -755,7 +755,7 @@ async function runDocCompareWithWeb(tabId) {
             <div class="link-item link-ok" style="border:none;background:transparent;padding:0;">
               <span class="link-status-badge ok">ครบ</span>
               <div class="link-info">
-                <div class="link-text">ลำดับและข้อความตรงกันตามการจับคู่แบบเข้ม (ดูตารางด้านบน)</div>
+                <div class="link-text">ลำดับและข้อความตรงกันตามการจับคู่ (ดูตารางด้านบน)</div>
                 <div class="link-url">บล็อกในเอกสาร ${cmp.docCount} รายการ — บนเว็บ ${cmp.webCount} รายการ</div>
               </div>
             </div>`;
