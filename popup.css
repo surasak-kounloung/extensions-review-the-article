@@ -916,6 +916,17 @@ header {
   overflow-y: auto;
 }
 
+/* ไฮไลต์จุดต่าง Word ↔ เว็บ (สีแดง) */
+.doc-pane-text--diff .doc-diff-del,
+.doc-pane-text--diff .doc-diff-ins {
+  background: rgba(220, 38, 38, 0.42);
+  color: #fecaca;
+  border-radius: 2px;
+  padding: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .doc-pane-text--muted {
   color: #52525b;
   font-style: italic;

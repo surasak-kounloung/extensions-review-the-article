@@ -28,6 +28,10 @@
       .trim();
   }
 
+  /** รูปแบบเดียวกับ isDocxAltMetaBlock — meta จาก Word draft */
+  var DOCX_ALT_META_PREFIX = /^alt\s*:\s*/i;
+  var DOCX_PARAGRAPH_HTTPS_PREFIX = /^https:/i;
+
   function stripBadges(el) {
     var clone = el.cloneNode(true);
     clone.querySelectorAll('.htr-tag-badge').forEach(function (b) {
@@ -42,6 +46,75 @@
   function elementTextForCompare(el) {
     if (!el) return '';
     var clone = stripBadges(el);
+    var doc = clone.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    var node;
+    if (doc) {
+      while ((node = clone.querySelector('a'))) {
+        var tn = doc.createTextNode(node.textContent || '');
+        if (node.parentNode) node.parentNode.replaceChild(tn, node);
+      }
+    }
+    return normalizeText(clone.textContent);
+  }
+
+  /** ตัดแท็กสื่อภายใน <table> — ลด base64/รูปจาก Word ที่ไม่ควรเข้า key หรือ debug HTML */
+  function stripTableSubtreeMedia(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('img, picture, source, svg, video, iframe, object, noscript').forEach(function (n) {
+      n.remove();
+    });
+  }
+
+  /** ลบ <p> ที่ขึ้นต้นด้วย "alt :" (draft คำอธิบายรูป) ภายใน <table> — ไม่ใช่เนื้อหาที่เทียบกับเว็บ */
+  function stripDocxTableAltDirectiveParagraphs(tableRoot) {
+    if (!tableRoot || !tableRoot.querySelectorAll) return;
+    tableRoot.querySelectorAll('p').forEach(function (p) {
+      var t = normalizeText(p.textContent || '');
+      if (DOCX_ALT_META_PREFIX.test(t)) p.remove();
+    });
+  }
+
+  var DOCX_NOTE_TO_WRITER_TABLE_PREFIX = /^note\s+to\s+writer\b/i;
+
+  /**
+   * ตารางคำแนะนำนักเขียนใน Word — ย่อหน้าแรกที่มีข้อความขึ้นต้นด้วย "Note to Writer"
+   * ไม่นำไปเทียบและไม่ใส่ใน HTML หลังตัด/กรอง (ไม่เข้า blocks/elements)
+   */
+  function isDocxNoteToWriterTable(tableEl) {
+    if (!tableEl || !tableEl.querySelectorAll) return false;
+    if (tableEl.tagName && tableEl.tagName.toLowerCase() !== 'table') return false;
+    var first = '';
+    var ps = tableEl.querySelectorAll('p');
+    var i;
+    for (i = 0; i < ps.length; i++) {
+      var t = normalizeText(ps[i].textContent || '');
+      if (t) {
+        first = t;
+        break;
+      }
+    }
+    if (!first) {
+      var cells = tableEl.querySelectorAll('th, td');
+      for (i = 0; i < cells.length; i++) {
+        var ct = normalizeText(cells[i].textContent || '');
+        if (ct) {
+          first = ct;
+          break;
+        }
+      }
+    }
+    return first ? DOCX_NOTE_TO_WRITER_TABLE_PREFIX.test(first) : false;
+  }
+
+  /**
+   * ข้อความในตารางสำหรับเทียบ: เหมือน elementTextForCompare แต่ไม่นับรูป/สื่อในตาราง
+   * (Mammoth มักฝัง data: URI ใน <img> ทำให้ debug หนักและไม่ควรเป็นส่วนเทียบ)
+   */
+  function elementTextForCompareTable(el) {
+    if (!el) return '';
+    var clone = stripBadges(el);
+    stripTableSubtreeMedia(clone);
+    stripDocxTableAltDirectiveParagraphs(clone);
     var doc = clone.ownerDocument || (typeof document !== 'undefined' ? document : null);
     var node;
     if (doc) {
@@ -206,7 +279,10 @@
               }
             }
           } else if (kind === 'table') {
-            var tt = elementTextForCompare(el);
+            if (isDocxNoteToWriterTable(el)) {
+              continue;
+            }
+            var tt = elementTextForCompareTable(el);
             if (tt) {
               blocks.push({ type: 'table', text: tt });
               elements.push(el);
@@ -762,10 +838,9 @@
    * - บรรทัดที่เหลือแค่ "H1"/"h1" (มีหรือไม่มี :) ไม่มีข้อความหลัง — ไม่ใช่หัวข้อจริงแบบ "H1 : รวมวิธี..."
    * - Alt: คำอธิบายรูปภาพใน draft
    * - ย่อหน้าที่ขึ้นต้นด้วย https: (ลิงก์ YouTube / วิดีโอ / URL ดิบใน draft)
+   * - ย่อหน้า "alt :" ภายใน <table> ตัดใน elementTextForCompareTable / debug HTML (ไม่ใช่บล็อก paragraph แยก)
+   * - ตารางที่ย่อหน้าแรก (หรือเซลล์แรกที่มีข้อความ) ขึ้นต้นด้วย "Note to Writer" — ข้ามทั้ง <table>
    */
-  var DOCX_ALT_META_PREFIX = /^alt\s*:\s*/i;
-  var DOCX_PARAGRAPH_HTTPS_PREFIX = /^https:/i;
-
   function isDocxH1MetaBlock(block) {
     if (!block) return false;
     if (block.type !== 'heading' && block.type !== 'paragraph') return false;
@@ -878,14 +953,23 @@
     return filterDocxExtractedPair(u.blocks, u.elements);
   }
 
-  /** รวม outerHTML ของแต่ละ element ที่ยังเหลือหลัง pipeline (โครงสร้างจาก Mammoth) */
+  /** รวม outerHTML ของแต่ละ element ที่ยังเหลือหลัง pipeline (โครงสร้างจาก Mammoth) — ตัด <img> ในตารางออกจากสตริง debug */
   function htmlFromDocxCompareElements(elements) {
     if (!elements || !elements.length) return '';
     var parts = [];
     var j;
     for (j = 0; j < elements.length; j++) {
       var el = elements[j];
-      if (el && el.outerHTML) parts.push(el.outerHTML);
+      if (!el || !el.outerHTML) continue;
+      var tag = el.tagName && el.tagName.toLowerCase();
+      if (tag === 'table') {
+        var dbg = el.cloneNode(true);
+        stripTableSubtreeMedia(dbg);
+        stripDocxTableAltDirectiveParagraphs(dbg);
+        parts.push(dbg.outerHTML);
+      } else {
+        parts.push(el.outerHTML);
+      }
     }
     return parts.join('\n');
   }
@@ -906,6 +990,7 @@
     trimDocxBeforeMainArticle: trimDocxBeforeMainArticle,
     isDocxMainH1AnchorBlock: isDocxMainH1AnchorBlock,
     isDocxNoteSeoWriterAnchorBlock: isDocxNoteSeoWriterAnchorBlock,
+    isDocxNoteToWriterTable: isDocxNoteToWriterTable,
     applyDocxComparePipeline: applyDocxComparePipeline,
     htmlFromDocxCompareElements: htmlFromDocxCompareElements
   };

@@ -677,6 +677,132 @@ function escapeHTML(str) {
   return d.innerHTML;
 }
 
+/** แยกคำ/ช่องว่างสำหรับ diff เมื่อข้อความยาว (ลดขนาดตาราง DP) */
+function tokenizeForDocDiff(s) {
+  if (!s) return [];
+  return s.match(/\S+|\s+/g) || [];
+}
+
+function mergeDocDiffOps(ops) {
+  const out = [];
+  for (let k = 0; k < ops.length; k++) {
+    const op = ops[k];
+    const last = out[out.length - 1];
+    if (last && last.type === op.type) {
+      last.text += op.text;
+    } else {
+      out.push({ type: op.type, text: op.text });
+    }
+  }
+  return out;
+}
+
+/**
+ * LCS บนชุดโทเค็น (ตัวอักษรหรือคำ/ช่องว่าง) — คืนลำดับ equal / delete / insert
+ * @param {string[]} aa
+ * @param {string[]} bb
+ */
+function lcsDiffOps(aa, bb) {
+  const m = aa.length;
+  const n = bb.length;
+  if (m * n > 8_000_000) return null;
+  const dp = new Uint32Array((m + 1) * (n + 1));
+  let i;
+  let j;
+  for (i = 1; i <= m; i++) {
+    for (j = 1; j <= n; j++) {
+      const idx = i * (n + 1) + j;
+      if (aa[i - 1] === bb[j - 1]) {
+        dp[idx] = dp[(i - 1) * (n + 1) + (j - 1)] + 1;
+      } else {
+        dp[idx] = Math.max(dp[(i - 1) * (n + 1) + j], dp[i * (n + 1) + (j - 1)]);
+      }
+    }
+  }
+  const ops = [];
+  i = m;
+  j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && aa[i - 1] === bb[j - 1]) {
+      ops.push({ type: 'equal', text: String(aa[i - 1]) });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i * (n + 1) + (j - 1)] >= dp[(i - 1) * (n + 1) + j])) {
+      ops.push({ type: 'insert', text: String(bb[j - 1]) });
+      j--;
+    } else if (i > 0) {
+      ops.push({ type: 'delete', text: String(aa[i - 1]) });
+      i--;
+    } else {
+      break;
+    }
+  }
+  ops.reverse();
+  return ops;
+}
+
+/**
+ * สร้าง HTML สองฝั่ง: ฝั่ง Word = ลบ/ต่าง (doc-diff-del), ฝั่งเว็บ = เพิ่ม/ต่าง (doc-diff-ins)
+ * ใช้ diff ระดับตัวอักษร (รวมช่องว่างและขึ้นบรรทัด) ถ้าไม่หนักเกินไป; ไม่งั้นใช้โทเค็นคำ+ช่องว่าง
+ */
+function diffTextsToHtmlPair(leftText, rightText) {
+  const a = Array.from(leftText);
+  const b = Array.from(rightText);
+  const prod = a.length * b.length;
+  let rawOps = null;
+  if (prod <= 4_000_000) {
+    rawOps = lcsDiffOps(a, b);
+  }
+  if (!rawOps) {
+    const ta = tokenizeForDocDiff(leftText);
+    const tb = tokenizeForDocDiff(rightText);
+    if (ta.length * tb.length > 6_000_000) return null;
+    rawOps = lcsDiffOps(ta, tb);
+  }
+  if (!rawOps) return null;
+  const merged = mergeDocDiffOps(rawOps);
+  let wordHtml = '';
+  let webHtml = '';
+  for (let k = 0; k < merged.length; k++) {
+    const seg = merged[k];
+    if (!seg.text) continue;
+    const esc = escapeHTML(seg.text);
+    if (seg.type === 'equal') {
+      wordHtml += esc;
+      webHtml += esc;
+    } else if (seg.type === 'delete') {
+      wordHtml += `<span class="doc-diff-del">${esc}</span>`;
+    } else if (seg.type === 'insert') {
+      webHtml += `<span class="doc-diff-ins">${esc}</span>`;
+    }
+  }
+  return { wordHtml, webHtml };
+}
+
+/** HTML เนื้อหาใน pane สำหรับการ์ดจุดต่าง (มีไฮไลต์เมื่อเป็นคู่เทียบ) */
+function buildDocIssuePaneBodies(row) {
+  const docText = row.docBlock ? DocCompare.blockFullText(row.docBlock) : '';
+  const webText = row.webBlock ? DocCompare.blockFullText(row.webBlock) : '';
+
+  if (row.kind === 'missing_on_web' && docText) {
+    return {
+      wordHtml: `<span class="doc-diff-del">${escapeHTML(docText)}</span>`,
+      webHtml: ''
+    };
+  }
+  if (row.kind === 'extra_on_web' && webText) {
+    return {
+      wordHtml: '',
+      webHtml: `<span class="doc-diff-ins">${escapeHTML(webText)}</span>`
+    };
+  }
+  if (row.kind === 'mismatch' || row.kind === 'reordered') {
+    const d = diffTextsToHtmlPair(docText, webText);
+    if (d) return d;
+  }
+  return { wordHtml: escapeHTML(docText), webHtml: escapeHTML(webText) };
+}
+
 function clearMammothDebug() {
   lastMammothHtml = '';
   docMammothDebug?.classList.add('hidden');
@@ -1057,13 +1183,15 @@ function appendDocCompareRow(row, tabId) {
   const cols = document.createElement('div');
   cols.className = 'doc-issue-cols';
 
+  const bodies = buildDocIssuePaneBodies(row);
+
   const paneWord = document.createElement('div');
   paneWord.className = 'doc-issue-pane doc-issue-pane--word';
   if (row.docBlock) {
     paneWord.innerHTML = `
       <span class="doc-pane-label">ไฟล์ Word</span>
       <span class="doc-pane-meta">[${escapeHTML(DocCompare.blockLabel(row.docBlock))}] ลำดับ ${row.docIndex + 1}</span>
-      <div class="doc-pane-text">${escapeHTML(DocCompare.blockFullText(row.docBlock))}</div>
+      <div class="doc-pane-text doc-pane-text--diff">${bodies.wordHtml}</div>
     `;
   } else {
     paneWord.innerHTML = `
@@ -1078,7 +1206,7 @@ function appendDocCompareRow(row, tabId) {
     paneWeb.innerHTML = `
       <span class="doc-pane-label">หน้าเว็บ</span>
       <span class="doc-pane-meta">[${escapeHTML(DocCompare.blockLabel(row.webBlock))}] ลำดับ ${row.webIndex + 1}</span>
-      <div class="doc-pane-text">${escapeHTML(DocCompare.blockFullText(row.webBlock))}</div>
+      <div class="doc-pane-text doc-pane-text--diff">${bodies.webHtml}</div>
     `;
     if (row.kind !== 'missing_on_web') {
       paneWeb.style.cursor = 'pointer';
