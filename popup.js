@@ -45,7 +45,82 @@ const branchBroken = document.getElementById('branch-broken');
 const branchTotal = document.getElementById('branch-total');
 const branchResults = document.getElementById('branch-results');
 
+const docxInput = document.getElementById('docx-input');
+const docxFilename = document.getElementById('docx-filename');
+const docCompareSummary = document.getElementById('doc-compare-summary');
+const docMatchCount = document.getElementById('doc-match-count');
+const docIssueCount = document.getElementById('doc-issue-count');
+const docBlockCount = document.getElementById('doc-block-count');
+const webBlockCount = document.getElementById('web-block-count');
+const docCompareResults = document.getElementById('doc-compare-results');
+const docCompareAlignmentWrap = document.getElementById('doc-compare-alignment-wrap');
+const docCompareAlignment = document.getElementById('doc-compare-alignment');
+const docCompareIssuesDetails = document.getElementById('doc-compare-issues-details');
+const docIssueSummaryCount = document.getElementById('doc-issue-summary-count');
+const docCompareQuickMsg = document.getElementById('doc-compare-quick-msg');
+const docMammothDebug = document.getElementById('doc-mammoth-debug');
+const docMammothHtml = document.getElementById('doc-mammoth-html');
+const docMammothMeta = document.getElementById('doc-mammoth-meta');
+const docMammothMessages = document.getElementById('doc-mammoth-messages');
+const docMammothCopy = document.getElementById('doc-mammoth-copy');
+const docxUploadProgress = document.getElementById('docx-upload-progress');
+const docxProgressFill = document.getElementById('docx-progress-fill');
+const docxProgressText = document.getElementById('docx-progress-text');
+
+/** HTML แท็กที่แสดงในกล่อง debug (หลังตัด/กรอง — คัดลอกได้) */
+let lastMammothHtml = '';
+
+/** บล็อกจาก .docx ล่าสุดหลัง applyDocxComparePipeline — ใช้เทียบกับหน้าเว็บเมื่อกดเปิดสแกนเท่านั้น (null = ยังไม่ได้อัปโหลดสำเร็จในรอบนี้) */
+let lastDocxCompareBlocks = null;
+
 btnToggle.addEventListener('click', toggleScan);
+
+/** ระหว่างอ่าน/แปลงไฟล์ .docx — ปิดปุ่มสแกนจนกว่าจะแสดงข้อความ "ไฟล์พร้อมแล้ว" (หรือจบด้วย error) */
+function setScanToggleDisabled(disabled) {
+  if (!btnToggle) return;
+  btnToggle.disabled = !!disabled;
+  if (disabled) {
+    btnToggle.setAttribute('aria-disabled', 'true');
+  } else {
+    btnToggle.removeAttribute('aria-disabled');
+  }
+}
+
+function setDocxUploadProgressVisible(visible) {
+  if (!docxUploadProgress) return;
+  docxUploadProgress.classList.toggle('hidden', !visible);
+  docxUploadProgress.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  if (visible && docxProgressFill) {
+    docxProgressFill.style.width = '0%';
+  }
+}
+
+function setDocxProgressPercent(pct) {
+  const p = Math.min(100, Math.max(0, Math.round(pct)));
+  if (docxProgressFill) docxProgressFill.style.width = p + '%';
+  if (!docxProgressText) return;
+  let label = 'กำลังอ่านไฟล์…';
+  if (p >= 30) label = 'กำลังแปลงเป็น HTML…';
+  if (p >= 70) label = 'กำลังแยกบล็อก…';
+  if (p >= 100) label = 'เสร็จแล้ว';
+  docxProgressText.textContent = `${label} ${p}%`;
+}
+
+if (docMammothCopy) {
+  docMammothCopy.addEventListener('click', async () => {
+    if (!lastMammothHtml) return;
+    try {
+      await navigator.clipboard.writeText(lastMammothHtml);
+      showMessage('คัดลอก HTML หลังตัด/กรองแล้ว', 'success');
+    } catch {
+      showMessage('คัดลอกไม่สำเร็จ', 'error');
+    }
+  });
+}
+
+if (docxInput) {
+  docxInput.addEventListener('change', onDocxSelected);
+}
 
 if (stepperMinus) {
   stepperMinus.addEventListener('click', () => {
@@ -264,6 +339,7 @@ function appendYearResult(entry) {
 async function renderBranchResults(tabId) {
   const data = await chrome.storage.local.get(`branchResults_${tabId}`);
   const saved = data[`branchResults_${tabId}`];
+  let branchInputValue = branchInput.value;
   if (!saved) return;
 
   branchOk.textContent = saved.okCount ?? 0;
@@ -283,8 +359,8 @@ async function renderBranchResults(tabId) {
     div.innerHTML = `
       <span class="link-status-badge alert">ไม่มี</span>
       <div class="link-info">
-        <div class="link-text">ไม่พบรูปแบบ "X สาขา" ในเนื้อหา</div>
-        <div class="link-url">ไม่มีข้อความเช่น "32 สาขา" ในเนื้อหา</div>
+        <div class="link-text">ไม่พบจำนวนสาขาในเนื้อหา</div>
+        <div class="link-url">ไม่มีข้อความเช่น "${branchInputValue} สาขา" ในเนื้อหา</div>
       </div>
     `;
     branchResults.appendChild(div);
@@ -382,7 +458,7 @@ async function toggleScan() {
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content.js']
+      files: ['docCompare.js', 'content.js']
     });
   } catch {
     showMessage('ไม่สามารถเข้าถึงหน้าเว็บนี้ได้', 'error');
@@ -397,6 +473,7 @@ async function toggleScan() {
       setInactiveUI();
       isScanning = false;
       clearAllResults();
+      clearDocCompareWordSection();
       await clearSavedResults(tab.id);
       showMessage('ปิดสแกนเรียบร้อยแล้ว', 'success');
     }
@@ -439,6 +516,9 @@ async function toggleScan() {
 
     showMessage('เปิดสแกนเรียบร้อย — กำลังตรวจสอบลิงก์...', 'success');
     startPolling(tab.id);
+    if (lastDocxCompareBlocks !== null) {
+      await runDocCompareWithWeb(tab.id);
+    }
   }
 }
 
@@ -534,4 +614,424 @@ function escapeHTML(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+function clearMammothDebug() {
+  lastMammothHtml = '';
+  docMammothDebug?.classList.add('hidden');
+  if (docMammothHtml) docMammothHtml.textContent = '';
+  if (docMammothMeta) docMammothMeta.textContent = '';
+  if (docMammothMessages) {
+    docMammothMessages.classList.add('hidden');
+    docMammothMessages.innerHTML = '';
+  }
+}
+
+/** รีเซ็ตส่วนเทียบ Word ↔ เว็บ — เรียกเมื่อปิดสแกนหน้าเว็บ */
+function clearDocCompareWordSection() {
+  lastDocxCompareBlocks = null;
+  if (docxFilename) docxFilename.textContent = '';
+  if (docxInput) docxInput.value = '';
+  if (docCompareResults) docCompareResults.innerHTML = '';
+  if (docCompareAlignment) docCompareAlignment.innerHTML = '';
+  docCompareAlignmentWrap?.classList.add('hidden');
+  if (docCompareIssuesDetails) {
+    docCompareIssuesDetails.classList.add('hidden');
+    docCompareIssuesDetails.open = false;
+  }
+  if (docCompareQuickMsg) {
+    docCompareQuickMsg.classList.add('hidden');
+    docCompareQuickMsg.innerHTML = '';
+  }
+  docCompareSummary?.classList.add('hidden');
+  if (docMatchCount) docMatchCount.textContent = '0';
+  if (docIssueCount) docIssueCount.textContent = '0';
+  if (docBlockCount) docBlockCount.textContent = '0';
+  if (webBlockCount) webBlockCount.textContent = '0';
+  if (docIssueSummaryCount) docIssueSummaryCount.textContent = '0';
+  clearMammothDebug();
+  if (docMammothDebug) docMammothDebug.open = false;
+  if (docxUploadProgress) {
+    docxUploadProgress.classList.add('hidden');
+    docxUploadProgress.setAttribute('aria-hidden', 'true');
+  }
+  if (docxProgressFill) docxProgressFill.style.width = '0%';
+  if (docxProgressText) docxProgressText.textContent = 'กำลังอ่านไฟล์…';
+}
+
+/**
+ * แสดง HTML จากแท็ก Mammoth หลัง trim + กรอง (ลำดับเดียวกับที่เทียบเว็บ) และข้อความจาก Mammoth (ถ้ามี)
+ * @param {{ value: string, messages?: Array<{ type?: string, message?: string } | string> }} result
+ * @param {string} processedHtml — รวม outerHTML ของแท็กที่เหลือหลัง applyDocxComparePipeline
+ */
+function showMammothDebug(result, processedHtml) {
+  if (!docMammothDebug || !docMammothHtml) return;
+  const raw = result.value || '';
+  lastMammothHtml = processedHtml != null ? String(processedHtml) : '';
+  docMammothHtml.textContent = lastMammothHtml;
+  const parts = [
+    `หลังตัด/กรอง ${lastMammothHtml.length.toLocaleString()} ตัวอักษร`,
+    `Mammoth ดิบ ${raw.length.toLocaleString()} ตัวอักษร`
+  ];
+  const msgs = result.messages;
+  if (msgs && msgs.length) parts.push(`ข้อความจาก Mammoth: ${msgs.length} รายการ`);
+  if (docMammothMeta) docMammothMeta.textContent = parts.join(' · ');
+
+  if (docMammothMessages && msgs && msgs.length) {
+    docMammothMessages.classList.remove('hidden');
+    docMammothMessages.innerHTML = msgs
+      .map(m => {
+        const text = typeof m === 'string' ? m : m.message || '';
+        const rawType = typeof m === 'object' && m.type ? String(m.type) : 'info';
+        const typeClass = rawType.replace(/[^a-z0-9_-]/gi, '-').slice(0, 40) || 'info';
+        return `<div class="doc-mammoth-msg doc-mammoth-msg--${escapeHTML(typeClass)}">${escapeHTML(String(text))}</div>`;
+      })
+      .join('');
+  } else if (docMammothMessages) {
+    docMammothMessages.classList.add('hidden');
+    docMammothMessages.innerHTML = '';
+  }
+  docMammothDebug.classList.remove('hidden');
+}
+
+/**
+ * เทียบ lastDocxCompareBlocks กับบล็อกจากแท็บ — เรียกหลังเปิดสแกนหน้าเว็บเมื่อมีไฟล์ .docx แล้ว
+ */
+async function runDocCompareWithWeb(tabId) {
+  if (lastDocxCompareBlocks === null || typeof DocCompare === 'undefined') return;
+
+  let webRes;
+  try {
+    webRes = await chrome.tabs.sendMessage(tabId, { action: 'getArticleBlocks' });
+  } catch (err) {
+    showMessage('ไม่สามารถอ่านเนื้อหาหน้าเว็บได้ — รีเฟรชหน้าแล้วลองใหม่', 'error');
+    return;
+  }
+
+  if (!webRes || !webRes.success) {
+    showMessage(webRes?.error || 'ไม่พบ container เนื้อหา (entry-content / blog-wrapper / cs-site-content)', 'error');
+    return;
+  }
+
+  const docBlocks = lastDocxCompareBlocks;
+  const cmp = DocCompare.compareBlockSequences(docBlocks, webRes.blocks);
+  const alignment = DocCompare.computeAlignment(docBlocks, webRes.blocks);
+
+  docMatchCount.textContent = String(cmp.matchCount);
+  docIssueCount.textContent = String(cmp.rows.length);
+  docBlockCount.textContent = String(cmp.docCount);
+  webBlockCount.textContent = String(cmp.webCount);
+  docCompareSummary.classList.remove('hidden');
+
+  if (docIssueSummaryCount) docIssueSummaryCount.textContent = String(cmp.rows.length);
+  if (alignment.length && docCompareAlignment) {
+    renderDocAlignment(alignment, tabId);
+    docCompareAlignmentWrap?.classList.remove('hidden');
+  } else {
+    docCompareAlignmentWrap?.classList.add('hidden');
+  }
+
+  if (docCompareIssuesDetails) {
+    docCompareIssuesDetails.classList.toggle('hidden', cmp.rows.length === 0);
+    docCompareIssuesDetails.open = cmp.rows.length > 0;
+  }
+
+  docCompareResults.innerHTML = '';
+
+  if (cmp.rows.length === 0) {
+    if (docCompareQuickMsg) {
+      docCompareQuickMsg.classList.remove('hidden');
+      if (cmp.docCount === 0 && cmp.webCount === 0) {
+        docCompareQuickMsg.innerHTML = `
+            <div class="link-item link-alert" style="border:none;background:transparent;padding:0;">
+              <span class="link-status-badge alert">ว่าง</span>
+              <div class="link-info">
+                <div class="link-text">ไม่พบบล็อกทั้งในไฟล์และบนหน้าเว็บ</div>
+                <div class="link-url">ตรวจว่าไฟล์มีเนื้อหา และเปิดหน้าบทความที่ถูกต้อง</div>
+              </div>
+            </div>`;
+      } else {
+        docCompareQuickMsg.innerHTML = `
+            <div class="link-item link-ok" style="border:none;background:transparent;padding:0;">
+              <span class="link-status-badge ok">ครบ</span>
+              <div class="link-info">
+                <div class="link-text">ลำดับและข้อความตรงกันตามการจับคู่แบบเข้ม (ดูตารางด้านบน)</div>
+                <div class="link-url">บล็อกในเอกสาร ${cmp.docCount} รายการ — บนเว็บ ${cmp.webCount} รายการ</div>
+              </div>
+            </div>`;
+      }
+    }
+  } else {
+    docCompareQuickMsg?.classList.add('hidden');
+    cmp.rows.forEach(row => appendDocCompareRow(row, tabId));
+  }
+
+  if (cmp.rows.length > 0) {
+    showMessage(`พบ ${cmp.rows.length} จุดที่ควรตรวจเทียบกับไฟล์`, 'warning');
+  } else if (docBlocks.length) {
+    showMessage('เทียบเอกสารกับหน้าเว็บแล้ว — ไม่พบความต่างที่ชัดเจน', 'success');
+  }
+}
+
+async function onDocxSelected(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+
+  if (typeof mammoth === 'undefined') {
+    showMessage('ไม่พบไลบรารี Mammoth — โหลดส่วนขยายใหม่', 'error');
+    return;
+  }
+  if (typeof DocCompare === 'undefined') {
+    showMessage('ไม่พบ DocCompare', 'error');
+    return;
+  }
+
+  docxFilename.textContent = file.name;
+  docCompareResults.innerHTML = '';
+  if (docCompareAlignment) docCompareAlignment.innerHTML = '';
+  docCompareAlignmentWrap?.classList.add('hidden');
+  docCompareIssuesDetails?.classList.add('hidden');
+  docCompareQuickMsg?.classList.add('hidden');
+  if (docCompareQuickMsg) docCompareQuickMsg.innerHTML = '';
+  docCompareSummary.classList.add('hidden');
+  clearMammothDebug();
+
+  try {
+    setScanToggleDisabled(true);
+    setDocxUploadProgressVisible(true);
+    setDocxProgressPercent(5);
+
+    const arrayBuffer = await file.arrayBuffer();
+    setDocxProgressPercent(28);
+
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    setDocxProgressPercent(48);
+
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(result.value, 'text/html');
+    setDocxProgressPercent(58);
+
+    const docExtracted = DocCompare.extractBlocksFromRoot(parsed.body);
+    const piped = DocCompare.applyDocxComparePipeline(docExtracted);
+    docExtracted.blocks = piped.blocks;
+    docExtracted.elements = piped.elements;
+    setDocxProgressPercent(78);
+
+    const processedHtml = DocCompare.htmlFromDocxCompareElements(piped.elements);
+    showMammothDebug(result, processedHtml);
+    setDocxProgressPercent(92);
+
+    lastDocxCompareBlocks = piped.blocks;
+
+    if (!docExtracted.blocks.length) {
+      showMessage('ไม่พบหัวข้อ/ย่อหน้า/รายการในไฟล์ — ลองบันทึกจาก Word เป็น .docx ใหม่', 'warning');
+    } else if (docCompareQuickMsg) {
+      docCompareQuickMsg.classList.remove('hidden');
+      docCompareQuickMsg.innerHTML = `
+        <div class="link-item link-alert" style="border:none;background:transparent;padding:0;">
+          <span class="link-status-badge alert">รอสแกน</span>
+          <div class="link-info">
+            <div class="link-text">ไฟล์พร้อมแล้ว — กดปุ่ม <strong>เปิดสแกนหน้าเว็บ</strong> ด้านบนเพื่อเทียบเนื้อหากับหน้าเว็บ</div>
+          </div>
+        </div>`;
+    }
+
+    if (docExtracted.blocks.length) {
+      showMessage('อัปโหลดไฟล์แล้ว — กดปุ่ม เปิดสแกนหน้าเว็บ เพื่อเทียบกับไฟล์นี้', 'success');
+    }
+  } catch (err) {
+    showMessage(err.message || String(err), 'error');
+  } finally {
+    setDocxProgressPercent(100);
+    await new Promise(r => setTimeout(r, 220));
+    setDocxUploadProgressVisible(false);
+    setScanToggleDisabled(false);
+  }
+
+  ev.target.value = '';
+}
+
+function renderDocAlignment(alignment, tabId) {
+  if (!docCompareAlignment) return;
+  docCompareAlignment.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'doc-align-head';
+  head.innerHTML = `
+    <span class="doc-align-col doc-align-col--idx">#</span>
+    <span>ไฟล์ Word (.docx)</span>
+    <span>หน้าเว็บ</span>
+  `;
+  docCompareAlignment.appendChild(head);
+
+  alignment.forEach((row, idx) => {
+    const n = idx + 1;
+    const r = document.createElement('div');
+    const isMatch = row.type === 'match';
+    const isDocOnly = row.type === 'doc_only';
+    r.className =
+      'doc-align-row' +
+      (isMatch ? ' doc-align-row--match' : isDocOnly ? ' doc-align-row--doc' : ' doc-align-row--web');
+
+    const docMeta = row.docBlock
+      ? `[${DocCompare.blockLabel(row.docBlock)}] ลำดับที่ ${row.docIndex + 1} ในเอกสาร`
+      : '';
+    const webMeta = row.webBlock
+      ? `[${DocCompare.blockLabel(row.webBlock)}] ลำดับที่ ${row.webIndex + 1} บนเว็บ`
+      : '';
+
+    const docText = row.docBlock ? DocCompare.blockFullText(row.docBlock) : '';
+    const webText = row.webBlock ? DocCompare.blockFullText(row.webBlock) : '';
+
+    const idxEl = document.createElement('span');
+    idxEl.className = 'doc-align-col doc-align-col--idx';
+    idxEl.textContent = String(n);
+
+    const wordCol = document.createElement('div');
+    wordCol.className = 'doc-align-col doc-align-col--word';
+    if (row.docBlock) {
+      const meta = document.createElement('span');
+      meta.className = 'doc-align-meta';
+      meta.textContent = docMeta;
+      const body = document.createElement('div');
+      body.className = 'doc-align-body';
+      body.textContent = docText;
+      wordCol.appendChild(meta);
+      wordCol.appendChild(body);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'doc-align-empty';
+      empty.textContent = '— (ไม่มีบล็อกฝั่ง Word ในจุดนี้)';
+      wordCol.appendChild(empty);
+    }
+
+    const webCol = document.createElement('div');
+    webCol.className = 'doc-align-col doc-align-col--web';
+    if (row.webBlock) {
+      webCol.classList.add('doc-align-col--web-click');
+      const meta = document.createElement('span');
+      meta.className = 'doc-align-meta';
+      meta.textContent = webMeta;
+      const body = document.createElement('div');
+      body.className = 'doc-align-body';
+      body.textContent = webText;
+      webCol.appendChild(meta);
+      webCol.appendChild(body);
+      webCol.addEventListener('click', async () => {
+        try {
+          const res = await chrome.tabs.sendMessage(tabId, {
+            action: 'scrollToArticleBlock',
+            index: row.webIndex
+          });
+          if (res?.success) await chrome.tabs.update(tabId, { active: true });
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'doc-align-empty';
+      empty.textContent = '— (ไม่มีบล็อกฝั่งเว็บในจุดนี้)';
+      webCol.appendChild(empty);
+    }
+
+    r.appendChild(idxEl);
+    r.appendChild(wordCol);
+    r.appendChild(webCol);
+    docCompareAlignment.appendChild(r);
+  });
+}
+
+function appendDocCompareRow(row, tabId) {
+  let badgeClass = 'broken';
+  let itemClass = 'link-broken';
+  let label = '';
+
+  if (row.kind === 'reordered') {
+    badgeClass = 'warn';
+    itemClass = 'link-warn';
+    label = 'ลำดับ/ตำแหน่งต่าง';
+  } else if (row.kind === 'mismatch') {
+    badgeClass = 'warn';
+    itemClass = 'link-warn';
+    label = 'ข้อความไม่ตรง';
+  } else if (row.kind === 'missing_on_web') {
+    label = 'ไม่มีบนเว็บ';
+  } else if (row.kind === 'extra_on_web') {
+    label = 'มีบนเว็บมากกว่าเอกสาร';
+    badgeClass = 'alert';
+    itemClass = 'link-alert';
+  }
+
+  const scoreNote =
+    row.score != null ? `ความคล้ายโดยประมาณ ${Math.round(row.score * 100)}%` : '';
+
+  const div = document.createElement('div');
+  div.className = `doc-issue-card ${itemClass}`;
+
+  const badgeRow = document.createElement('div');
+  badgeRow.className = 'doc-issue-badge-row';
+  badgeRow.innerHTML = `<span class="link-status-badge ${badgeClass}">${escapeHTML(label)}</span>`;
+  if (scoreNote && (row.kind === 'reordered' || row.kind === 'mismatch')) {
+    const sn = document.createElement('span');
+    sn.className = 'doc-pane-meta';
+    sn.style.marginBottom = '0';
+    sn.textContent = scoreNote;
+    badgeRow.appendChild(sn);
+  }
+  div.appendChild(badgeRow);
+
+  const cols = document.createElement('div');
+  cols.className = 'doc-issue-cols';
+
+  const paneWord = document.createElement('div');
+  paneWord.className = 'doc-issue-pane doc-issue-pane--word';
+  if (row.docBlock) {
+    paneWord.innerHTML = `
+      <span class="doc-pane-label">ไฟล์ Word</span>
+      <span class="doc-pane-meta">[${escapeHTML(DocCompare.blockLabel(row.docBlock))}] ลำดับ ${row.docIndex + 1}</span>
+      <div class="doc-pane-text">${escapeHTML(DocCompare.blockFullText(row.docBlock))}</div>
+    `;
+  } else {
+    paneWord.innerHTML = `
+      <span class="doc-pane-label">ไฟล์ Word</span>
+      <div class="doc-pane-text doc-pane-text--muted">—</div>
+    `;
+  }
+
+  const paneWeb = document.createElement('div');
+  paneWeb.className = 'doc-issue-pane doc-issue-pane--web';
+  if (row.webBlock) {
+    paneWeb.innerHTML = `
+      <span class="doc-pane-label">หน้าเว็บ</span>
+      <span class="doc-pane-meta">[${escapeHTML(DocCompare.blockLabel(row.webBlock))}] ลำดับ ${row.webIndex + 1}</span>
+      <div class="doc-pane-text">${escapeHTML(DocCompare.blockFullText(row.webBlock))}</div>
+    `;
+    if (row.kind !== 'missing_on_web') {
+      paneWeb.style.cursor = 'pointer';
+      paneWeb.title = 'คลิกเพื่อเลื่อนไปตำแหน่งนี้';
+      paneWeb.addEventListener('click', async () => {
+        try {
+          const res = await chrome.tabs.sendMessage(tabId, {
+            action: 'scrollToArticleBlock',
+            index: row.webIndex
+          });
+          if (res?.success) await chrome.tabs.update(tabId, { active: true });
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    }
+  } else {
+    paneWeb.innerHTML = `
+      <span class="doc-pane-label">หน้าเว็บ</span>
+      <div class="doc-pane-text doc-pane-text--muted">—</div>
+    `;
+  }
+
+  cols.appendChild(paneWord);
+  cols.appendChild(paneWeb);
+  div.appendChild(cols);
+
+  docCompareResults.appendChild(div);
 }

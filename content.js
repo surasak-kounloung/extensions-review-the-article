@@ -32,6 +32,9 @@ function getCategory(tagName) {
 let isActive = false;
 let styleEl = null;
 
+/** เก็บ element ตามลำดับบล็อกจาก DocCompare (สำหรับเลื่อนไปดูเมื่อเทียบกับไฟล์ .docx) */
+let articleBlockElements = [];
+
 const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span', 'i', 'picture', 'source', 'thead', 'tbody', 'tr', 'th', 'td'];
 const CONTENT_SELECTOR = '.entry-content, .blog-wrapper, .cs-site-content';
 const CONTENT_CLASSES = ['entry-content', 'blog-wrapper', 'cs-site-content'];
@@ -873,6 +876,50 @@ function hasContentContainer() {
   };
 }
 
+function getArticleBlocksFromPage() {
+  const container = getContentContainer();
+  if (!container) {
+    return {
+      success: false,
+      error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"',
+      blocks: []
+    };
+  }
+  if (typeof DocCompare === 'undefined') {
+    return { success: false, error: 'DocCompare ไม่โหลด', blocks: [] };
+  }
+  const extracted = DocCompare.extractBlocksFromRoot(container);
+  articleBlockElements = extracted.elements || [];
+  return { success: true, blocks: extracted.blocks };
+}
+
+function scrollToArticleBlock(index) {
+  const el = articleBlockElements[Number(index)];
+  if (!el) return { success: false };
+
+  document.querySelectorAll('.htr-highlight-broken').forEach(h => {
+    h.style.removeProperty('outline');
+    h.style.removeProperty('outline-offset');
+    h.style.removeProperty('background-color');
+    h.classList.remove('htr-highlight-broken');
+  });
+
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.outline = '3px solid #38bdf8';
+  el.style.outlineOffset = '3px';
+  el.style.backgroundColor = 'rgba(56, 189, 248, 0.12)';
+  el.classList.add('htr-highlight-broken');
+
+  setTimeout(() => {
+    el.style.removeProperty('outline');
+    el.style.removeProperty('outline-offset');
+    el.style.removeProperty('background-color');
+    el.classList.remove('htr-highlight-broken');
+  }, 5000);
+
+  return { success: true };
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'hasContentContainer') {
     sendResponse(hasContentContainer());
@@ -902,6 +949,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(checkBranchInContent(request.expectedBranch));
   } else if (request.action === 'scrollToBranch') {
     sendResponse(scrollToBranch(request.index));
+  } else if (request.action === 'getArticleBlocks') {
+    sendResponse(getArticleBlocksFromPage());
+  } else if (request.action === 'scrollToArticleBlock') {
+    sendResponse(scrollToArticleBlock(request.index));
   }
   return true;
 });

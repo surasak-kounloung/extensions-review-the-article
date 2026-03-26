@@ -1,0 +1,15 @@
+{
+  "name": "extensions-review-the-article",
+  "version": "1.0.0",
+  "description": "ส่วนขยาย Chrome สำหรับตรวจสอบแท็ก HTML และโครงสร้างเนื้อหาบนหน้าเว็บ โดยเน้นใช้งานกับหน้าเว็บที่มี element class `entry-content, blog-wrapper, cs-site-content` (เช่น WordPress)",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mammoth": "^1.12.0"
+  }
+}

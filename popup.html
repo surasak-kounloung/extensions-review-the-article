@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HTML Tag Reviewer</title>
+  <title>HTML Tag & Article Content Reviewer</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
           <polyline points="16 18 22 12 16 6"></polyline>
           <polyline points="8 6 2 12 8 18"></polyline>
         </svg>
-        <h1>HTML Tag Reviewer</h1>
+        <h1>HTML Tag & Article Content Reviewer</h1>
       </div>
       <p class="subtitle">ตรวจสอบแท็ก HTML ในเนื้อหาหน้าเว็บ</p>
     </header>
@@ -40,6 +40,47 @@
     </div>
 
     <div id="message" class="message hidden"></div>
+
+    <div class="link-checker doc-compare-section">
+      <div class="link-header" style="margin-bottom: 5px;">
+        <h3>เทียบเนื้อหากับไฟล์ Word (.docx)</h3>
+      </div>
+      <p class="checker-desc">อัปโหลดไฟล์ .docx แล้วกดปุ่ม <strong>เปิดสแกนหน้าเว็บ</strong> เพื่อเทียบการจับคู่ทีละบล็อก (หัวข้อ / ย่อหน้า / รายการ / ตาราง) กับเนื้อหาหน้าเว็บ</p>
+      <div class="doc-upload-row">
+        <label class="btn-doc-upload" for="docx-input">เลือกไฟล์ .docx</label>
+        <input type="file" id="docx-input" class="docx-input-hidden" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+        <span id="docx-filename" class="docx-filename"></span>
+      </div>
+      <div id="docx-upload-progress" class="link-progress hidden" aria-hidden="true">
+        <div class="progress-bar"><div class="progress-fill" id="docx-progress-fill"></div></div>
+        <span id="docx-progress-text" class="progress-text">กำลังอ่านไฟล์…</span>
+      </div>
+      <div id="doc-compare-summary" class="link-summary hidden">
+        <span class="link-stat ok"><span id="doc-match-count">0</span> ตรงลำดับ</span>
+        <span class="link-stat broken"><span id="doc-issue-count">0</span> จุดต่าง</span>
+        <span class="link-stat total">เอกสาร <span id="doc-block-count">0</span> / เว็บ <span id="web-block-count">0</span></span>
+      </div>
+      <div id="doc-compare-alignment-wrap" class="doc-alignment-wrap hidden">
+        <h4 class="doc-subheading">เทียบทีละบล็อก (Word ↔ หน้าเว็บ)</h4>
+        <p class="checker-desc doc-alignment-hint">แถวเขียว = ข้อความตรงกันตามลำดับ <br>แถวส้ม = มีเฉพาะใน Word <br>แถวน้ำเงิน = มีเฉพาะบนเว็บ <br>คลิกคอลัมน์หน้าเว็บเพื่อเลื่อนไปตำแหน่งนั้น</p>
+        <div id="doc-compare-alignment" class="doc-compare-alignment" role="region" aria-label="ตารางเทียบเอกสารกับหน้าเว็บ"></div>
+      </div>
+      <div id="doc-compare-quick-msg" class="doc-compare-quick-msg hidden" aria-live="polite"></div>
+      <details id="doc-compare-issues-details" class="doc-issues-details hidden">
+        <summary class="doc-issues-summary">รายละเอียดจุดต่าง (ข้อความคล้ายแต่ไม่ตรง / สลับลำดับ / ขาด) — <span id="doc-issue-summary-count">0</span> รายการ</summary>
+        <div id="doc-compare-results" class="link-results doc-compare-results doc-compare-results-issues"></div>
+      </details>
+      <details id="doc-mammoth-debug" class="doc-mammoth-debug hidden">
+        <summary class="doc-mammoth-summary">HTML หลังตัด/กรอง (สำหรับ debug)</summary>
+        <p class="checker-desc doc-mammoth-desc">แท็ก HTML ที่เหลือหลังตัดก่อน H1 หลักของบทความและกรอง meta (H1 เปล่า, Alt:, ย่อหน้า https:) — ลำดับเดียวกับชุดที่นำไปเทียบกับหน้าเว็บ</p>
+        <div class="doc-mammoth-actions">
+          <button type="button" id="doc-mammoth-copy" class="btn-doc-upload doc-mammoth-copy">คัดลอก HTML นี้</button>
+          <span id="doc-mammoth-meta" class="doc-mammoth-meta" aria-live="polite"></span>
+        </div>
+        <pre id="doc-mammoth-html" class="doc-mammoth-html" tabindex="0"></pre>
+        <div id="doc-mammoth-messages" class="doc-mammoth-messages hidden" role="region" aria-label="ข้อความจาก Mammoth"></div>
+      </details>
+    </div>
 
     <div class="link-checker">
       <div class="link-header">
@@ -119,6 +160,8 @@
     
   </div>
 
+  <script src="lib/mammoth.browser.min.js"></script>
+  <script src="docCompare.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# HTML Tag Reviewer
+# HTML Tag & Article Content Reviewer
 
 ส่วนขยาย Chrome สำหรับตรวจสอบแท็ก HTML และโครงสร้างเนื้อหาบนหน้าเว็บ โดยเน้นใช้งานกับหน้าเว็บที่มี element class `entry-content, blog-wrapper, cs-site-content` (เช่น WordPress)
 
@@ -40,7 +40,7 @@
 ## วิธีใช้งาน
 
 1. ไปที่หน้าเว็บที่ต้องการตรวจสอบ (ควรเป็นหน้าเนื้อหาที่มี class `entry-content, blog-wrapper, cs-site-content`)
-2. คลิกไอคอน **HTML Tag Reviewer** บน toolbar
+2. คลิกไอคอน **HTML Tag & Article Content Reviewer** บน toolbar
 3. กดปุ่ม **"เปิดสแกนหน้าเว็บ"**
 4. รอการสแกน — ระบบจะ:
    - แสดง badge แท็ก HTML บนหน้าเว็บ
