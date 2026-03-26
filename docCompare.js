@@ -242,12 +242,14 @@
 
   /**
    * ตัดคำนำหน้าแบบเขียนกำกับใน Word ออกก่อนเทียบกับหน้าเว็บ
+   * - "Header Tag 2 :" / "header tag 3:" / ช่องหลัง : ไม่บังคับ — หมายเลขระดับ 2–6
    * - H1/h1: รองรับทั้ง "H1:", "H1 :", "H1 " (ไม่บังคับ :) ตามแบบฟอร์มบทความ
    * - H2–H6: ยังใช้รูปแบบ "H2:" … "H6:" มี colon
    */
   function stripLeadingEditorHeadingTag(t) {
     if (t == null || t === '') return '';
     var s = normalizeText(String(t));
+    s = s.replace(/^header\s+tag\s+([2-6])\s*[:：]\s*/i, '');
     s = s.replace(/^h1\s*[:：]?\s*/i, '');
     s = s.replace(/^h([2-6])\s*:\s*/i, '');
     return normalizeText(s);
@@ -289,6 +291,11 @@
     t = t.replace(/\u2007|\u202f/g, ' ');
     t = t.replace(/[？]/g, '?');
     t = t.replace(/[：]/g, ':');
+    /* en/em dash, minus sign → hyphen — เว็บ (Gutenberg) มักได้ U+2013 ที่ "Radio Frequency – RF"; Word/Mammoth มักเป็น ASCII "-" ถ้า blockKey ต่าง LCS จะไม่จับคู่บล็อกเดียวกันทั้งที่เนื้อหาเหมือน */
+    t = t.replace(/\u2013|\u2014|\u2212/g, '-');
+    /* อัญประกาศโค้ง — Word กับ blockquote เว็บมักใช้ “ ” ไม่ตรงกับที่อีกฝั่งไม่มีหรือใช้ " ธรรมดา */
+    t = t.replace(/[\u201c\u201d\u201e\u201f\u00ab\u00bb]/g, '"');
+    t = t.replace(/[\u2018\u2019]/g, "'");
     return normalizeText(t);
   }
 
@@ -313,6 +320,24 @@
   }
 
   /**
+   * ถ้าข้อความถูกห่อด้วยอัญประกาศที่ต้น–ท้าย (Word .docx มักใส่ “ … ” ครอบย่อหน้า; เว็บใน blockquote มักไม่มี)
+   * ตัดคู่เปิด–ปิดทิ้งก่อนทำ blockKey — ใช้เฉพาะ key ไม่แก้ข้อความดิบใน block
+   */
+  function stripOuterWrappingDoubleQuotesForCompareKey(t) {
+    if (!t || typeof t !== 'string') return t;
+    var s = t.trim();
+    if (s.length < 2) return t;
+    var c0 = s.charAt(0);
+    var c1 = s.charAt(s.length - 1);
+    var open = c0 === '"' || c0 === '\u201c';
+    var close = c1 === '"' || c1 === '\u201d';
+    if (open && close) {
+      return normalizeText(s.slice(1, -1));
+    }
+    return t;
+  }
+
+  /**
    * ข้อความย่อหน้า/หัวข้อสำหรับ blockKey — ช่องว่างรอบ : หลังคำนำหน้า (เทียบ Word กับเว็บที่ติดลิงก์)
    */
   function normalizeBodyTextForCompareKey(s) {
@@ -321,6 +346,20 @@
     if (!t) return '';
     t = normalizeLeadColonLabelForCompareKey(t);
     t = normalizeText(t);
+    t = stripOuterWrappingDoubleQuotesForCompareKey(t);
+    return t;
+  }
+
+  /**
+   * ข้อความรวมของบล็อกตารางสำหรับ blockKey — ไม่ใช้ normalizeLeadColonLabel กับทั้งก้อน (เสี่ยงเพี้ยนถ้ามี : ในเซลล์)
+   * Word มักใส่ทุกแถวใน thead + ห่อเซลล์ด้วย <p>; เว็บมัก thead แถวหัว + tbody เป็น <td>
+   */
+  function normalizeTableTextForCompareKey(s) {
+    var t = normalizeText(s || '');
+    t = applyCompareKeyWhitespaceAndPunctuation(t);
+    if (!t) return '';
+    t = normalizeText(t);
+    t = stripOuterWrappingDoubleQuotesForCompareKey(t);
     return t;
   }
 
@@ -335,6 +374,9 @@
 
   /** เกณฑ์ความคล้ายของบล็อก list ทั้งก้อนให้ถือว่า “ตรงกัน” ใน LCS (0–1) */
   var LIST_LCS_SIMILARITY = 0.88;
+
+  /** ตาราง Word (thead + th + p ในเซลล์) กับ Gutenberg (thead/tbody + td) — ข้อความรวมใกล้เคียงแต่ blockKey อาจคลาดเคลื่อน */
+  var TABLE_LCS_SIMILARITY = 0.98;
 
   function joinNormalizedListItems(blk) {
     return (blk.items || [])
@@ -377,6 +419,21 @@
     return textForCompareKey(a) === textForCompareKey(b);
   }
 
+  /**
+   * Word/Mammoth มักได้ย่อหน้า <p>; Gutenberg มักใส่คำเตือนใน <blockquote> — blockKey เป็น p:… กับ blockquote:…
+   * ถ้าข้อความหลัง normalize เท่ากัน ให้จับคู่ใน LCS เป็นบล็อกเดียวกัน
+   */
+  function paragraphBlockquoteMatch(a, b) {
+    if (!a || !b) return false;
+    if (a.type === 'paragraph' && b.type === 'blockquote') {
+      return textForCompareKey(a) === textForCompareKey(b);
+    }
+    if (a.type === 'blockquote' && b.type === 'paragraph') {
+      return textForCompareKey(a) === textForCompareKey(b);
+    }
+    return false;
+  }
+
   /** จับคู่บล็อกสำหรับ LCS: บล็อกทั่วไปใช้ blockKey เท่ากัน; list ใช้ key หรือความคล้ายรายการ */
   function blocksMatchForLcs(docBlocks, webBlocks, di, wj) {
     var d = docBlocks[di];
@@ -385,8 +442,13 @@
       if (blockKey(d) === blockKey(w)) return true;
       return listBlockSimilarityForLcs(d, w) >= LIST_LCS_SIMILARITY;
     }
+    if (d.type === 'table' && w.type === 'table') {
+      if (blockKey(d) === blockKey(w)) return true;
+      return tableBlockSimilarityForLcs(d, w) >= TABLE_LCS_SIMILARITY;
+    }
     if (blockKey(d) === blockKey(w)) return true;
     if (headingsMatchByTextIgnoringLevel(d, w)) return true;
+    if (paragraphBlockquoteMatch(d, w)) return true;
     return tableAndStandaloneLinkMatch(d, w);
   }
 
@@ -452,7 +514,16 @@
         })
         .join('\n');
     }
+    if (b.type === 'table') {
+      return normalizeTableTextForCompareKey(blockTextForCompare(b));
+    }
     return normalizeBodyTextForCompareKey(blockTextForCompare(b));
+  }
+
+  function tableBlockSimilarityForLcs(d, w) {
+    var t1 = normalizeTableTextForCompareKey(blockTextForCompare(d));
+    var t2 = normalizeTableTextForCompareKey(blockTextForCompare(w));
+    return stringSimilarity(t1, t2);
   }
 
   function blockKey(b) {
@@ -715,6 +786,35 @@
     return DOCX_PARAGRAPH_HTTPS_PREFIX.test(t);
   }
 
+  /**
+   * มาร์กเกอร์ท้ายไฟล์ Word (เช็กลิสต์ SEO สำหรับนักเขียน) — ไม่ใช่เนื้อหาบทความบนเว็บ
+   * ตัดทุกบล็อกตั้งแต่ย่อหน้า/หัวข้อที่ขึ้นต้นด้วย "NOTE SEO Writer" จนถึงท้าย
+   */
+  function isDocxNoteSeoWriterAnchorBlock(block) {
+    if (!block) return false;
+    if (block.type !== 'heading' && block.type !== 'paragraph') return false;
+    var t = normalizeText(block.text || '');
+    return /^note\s+seo\s+writer\b/i.test(t);
+  }
+
+  /** คืนเฉพาะบล็อกก่อนจุด NOTE SEO Writer (ไม่รวมบล็อกนั้นและรายการถัดไป) */
+  function trimDocxBeforeNoteSeoWriter(blocks, elements) {
+    if (!blocks || !blocks.length) {
+      return { blocks: blocks || [], elements: elements || [] };
+    }
+    var els = elements || [];
+    var i;
+    for (i = 0; i < blocks.length; i++) {
+      if (isDocxNoteSeoWriterAnchorBlock(blocks[i])) {
+        if (els.length === blocks.length) {
+          return { blocks: blocks.slice(0, i), elements: els.slice(0, i) };
+        }
+        return { blocks: blocks.slice(0, i), elements: [] };
+      }
+    }
+    return { blocks: blocks, elements: els };
+  }
+
   function filterDocxSkipH1MetaBlocks(blocks) {
     if (!blocks || !blocks.length) return blocks || [];
     return blocks.filter(function (b) {
@@ -774,7 +874,8 @@
     var blocks = extracted.blocks || [];
     var elements = extracted.elements || [];
     var t = trimDocxExtractedPair(blocks, elements);
-    return filterDocxExtractedPair(t.blocks, t.elements);
+    var u = trimDocxBeforeNoteSeoWriter(t.blocks, t.elements);
+    return filterDocxExtractedPair(u.blocks, u.elements);
   }
 
   /** รวม outerHTML ของแต่ละ element ที่ยังเหลือหลัง pipeline (โครงสร้างจาก Mammoth) */
@@ -804,6 +905,7 @@
     filterDocxSkipH1MetaBlocks: filterDocxSkipH1MetaBlocks,
     trimDocxBeforeMainArticle: trimDocxBeforeMainArticle,
     isDocxMainH1AnchorBlock: isDocxMainH1AnchorBlock,
+    isDocxNoteSeoWriterAnchorBlock: isDocxNoteSeoWriterAnchorBlock,
     applyDocxComparePipeline: applyDocxComparePipeline,
     htmlFromDocxCompareElements: htmlFromDocxCompareElements
   };

@@ -73,6 +73,46 @@ let lastMammothHtml = '';
 /** บล็อกจาก .docx ล่าสุดหลัง applyDocxComparePipeline — ใช้เทียบกับหน้าเว็บเมื่อกดเปิดสแกนเท่านั้น (null = ยังไม่ได้อัปโหลดสำเร็จในรอบนี้) */
 let lastDocxCompareBlocks = null;
 
+function docxCompareStorageKey(tabId) {
+  return `docxCompareCache_${tabId}`;
+}
+
+async function saveDocxCompareCache(tabId, filename, blocks) {
+  if (tabId == null || !blocks || !blocks.length) return;
+  try {
+    await chrome.storage.local.set({
+      [docxCompareStorageKey(tabId)]: {
+        filename: filename || '',
+        blocks
+      }
+    });
+  } catch (e) {
+    console.warn('saveDocxCompareCache', e);
+  }
+}
+
+async function loadDocxCompareCache(tabId) {
+  if (tabId == null) return null;
+  try {
+    const key = docxCompareStorageKey(tabId);
+    const data = await chrome.storage.local.get(key);
+    const entry = data[key];
+    if (!entry || !Array.isArray(entry.blocks) || !entry.blocks.length) return null;
+    return { filename: entry.filename || '', blocks: entry.blocks };
+  } catch {
+    return null;
+  }
+}
+
+async function removeDocxCompareCache(tabId) {
+  if (tabId == null) return;
+  try {
+    await chrome.storage.local.remove(docxCompareStorageKey(tabId));
+  } catch (e) {
+    console.warn('removeDocxCompareCache', e);
+  }
+}
+
 btnToggle.addEventListener('click', toggleScan);
 
 /** ระหว่างอ่าน/แปลงไฟล์ .docx — ปิดปุ่มสแกนจนกว่าจะแสดงข้อความ "ไฟล์พร้อมแล้ว" (หรือจบด้วย error) */
@@ -140,15 +180,36 @@ yearValue.textContent = new Date().getFullYear();
 init();
 
 async function init() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    const cached = await loadDocxCompareCache(tab.id);
+    if (cached?.blocks?.length) {
+      lastDocxCompareBlocks = cached.blocks;
+      if (docxFilename && cached.filename) docxFilename.textContent = cached.filename;
+    }
+  }
+
   await checkCurrentStatus();
-  if (isScanning) {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  if (isScanning && tab?.id) {
     await renderAnchorResults(tab.id);
     await renderH2Results(tab.id);
     await renderYearResults(tab.id);
     await renderBranchResults(tab.id);
     await renderLinkResults(tab.id);
     await checkIfStillRunning(tab.id);
+    if (lastDocxCompareBlocks !== null) {
+      await runDocCompareWithWeb(tab.id, { quiet: true });
+    }
+  } else if (!isScanning && tab?.id && lastDocxCompareBlocks !== null && docCompareQuickMsg) {
+    docCompareQuickMsg.classList.remove('hidden');
+    docCompareQuickMsg.innerHTML = `
+        <div class="link-item link-alert" style="border:none;background:transparent;padding:0;">
+          <span class="link-status-badge alert">รอสแกน</span>
+          <div class="link-info">
+            <div class="link-text">ไฟล์ยังอยู่ในแท็บนี้ — กดปุ่ม <strong>เปิดสแกนหน้าเว็บ</strong> เพื่อเทียบเนื้อหากับหน้าเว็บอีกครั้ง</div>
+          </div>
+        </div>`;
   }
 }
 
@@ -473,7 +534,7 @@ async function toggleScan() {
       setInactiveUI();
       isScanning = false;
       clearAllResults();
-      clearDocCompareWordSection();
+      await clearDocCompareWordSection(tab.id);
       await clearSavedResults(tab.id);
       showMessage('ปิดสแกนเรียบร้อยแล้ว', 'success');
     }
@@ -627,9 +688,10 @@ function clearMammothDebug() {
   }
 }
 
-/** รีเซ็ตส่วนเทียบ Word ↔ เว็บ — เรียกเมื่อปิดสแกนหน้าเว็บ */
-function clearDocCompareWordSection() {
+/** รีเซ็ตส่วนเทียบ Word ↔ เว็บ — เรียกเมื่อปิดสแกนหน้าเว็บ (ลบ cache ต่อแท็บเมื่อส่ง tabId) */
+async function clearDocCompareWordSection(tabId) {
   lastDocxCompareBlocks = null;
+  if (tabId != null) await removeDocxCompareCache(tabId);
   if (docxFilename) docxFilename.textContent = '';
   if (docxInput) docxInput.value = '';
   if (docCompareResults) docCompareResults.innerHTML = '';
@@ -696,8 +758,9 @@ function showMammothDebug(result, processedHtml) {
 
 /**
  * เทียบ lastDocxCompareBlocks กับบล็อกจากแท็บ — เรียกหลังเปิดสแกนหน้าเว็บเมื่อมีไฟล์ .docx แล้ว
+ * @param {{ quiet?: boolean }} [options] — quiet: ไม่แสดง toast (เช่น ตอนเปิด panel คืนจาก storage)
  */
-async function runDocCompareWithWeb(tabId) {
+async function runDocCompareWithWeb(tabId, options = {}) {
   if (lastDocxCompareBlocks === null || typeof DocCompare === 'undefined') return;
 
   let webRes;
@@ -766,10 +829,12 @@ async function runDocCompareWithWeb(tabId) {
     cmp.rows.forEach(row => appendDocCompareRow(row, tabId));
   }
 
-  if (cmp.rows.length > 0) {
-    showMessage(`พบ ${cmp.rows.length} จุดที่ควรตรวจเทียบกับไฟล์`, 'warning');
-  } else if (docBlocks.length) {
-    showMessage('เทียบเอกสารกับหน้าเว็บแล้ว — ไม่พบความต่างที่ชัดเจน', 'success');
+  if (!options.quiet) {
+    if (cmp.rows.length > 0) {
+      showMessage(`พบ ${cmp.rows.length} จุดที่ควรตรวจเทียบกับไฟล์`, 'warning');
+    } else if (docBlocks.length) {
+      showMessage('เทียบเอกสารกับหน้าเว็บแล้ว — ไม่พบความต่างที่ชัดเจน', 'success');
+    }
   }
 }
 
@@ -823,8 +888,19 @@ async function onDocxSelected(ev) {
 
     lastDocxCompareBlocks = piped.blocks;
 
+    const [tabForCache] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabForCache?.id) {
+      if (docExtracted.blocks.length) {
+        await saveDocxCompareCache(tabForCache.id, file.name, piped.blocks);
+      } else {
+        await removeDocxCompareCache(tabForCache.id);
+      }
+    }
+
     if (!docExtracted.blocks.length) {
       showMessage('ไม่พบหัวข้อ/ย่อหน้า/รายการในไฟล์ — ลองบันทึกจาก Word เป็น .docx ใหม่', 'warning');
+    } else if (isScanning && tabForCache?.id) {
+      await runDocCompareWithWeb(tabForCache.id);
     } else if (docCompareQuickMsg) {
       docCompareQuickMsg.classList.remove('hidden');
       docCompareQuickMsg.innerHTML = `
@@ -834,9 +910,6 @@ async function onDocxSelected(ev) {
             <div class="link-text">ไฟล์พร้อมแล้ว — กดปุ่ม <strong>เปิดสแกนหน้าเว็บ</strong> ด้านบนเพื่อเทียบเนื้อหากับหน้าเว็บ</div>
           </div>
         </div>`;
-    }
-
-    if (docExtracted.blocks.length) {
       showMessage('อัปโหลดไฟล์แล้ว — กดปุ่ม เปิดสแกนหน้าเว็บ เพื่อเทียบกับไฟล์นี้', 'success');
     }
   } catch (err) {
