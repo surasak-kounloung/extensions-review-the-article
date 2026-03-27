@@ -1030,8 +1030,8 @@ async function onDocxSelected(ev) {
     } else if (docCompareQuickMsg) {
       docCompareQuickMsg.classList.remove('hidden');
       docCompareQuickMsg.innerHTML = `
-        <div class="link-item link-alert" style="border:none;background:transparent;padding:0;">
-          <span class="link-status-badge alert">รอสแกน</span>
+        <div class="link-item link-success" style="padding: 10px 12px; margin: -10px -12px;">
+          <span class="link-status-badge ok">รอสแกน</span>
           <div class="link-info">
             <div class="link-text">ไฟล์พร้อมแล้ว — กดปุ่ม <strong>เปิดสแกนหน้าเว็บ</strong> ด้านบนเพื่อเทียบเนื้อหากับหน้าเว็บ</div>
           </div>

@@ -438,6 +438,12 @@ header {
   transform: translateX(3px);
 }
 
+.link-item.link-success {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+}
+
 .link-status-badge {
   flex-shrink: 0;
   font-size: 9px;
