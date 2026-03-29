@@ -547,7 +547,7 @@ async function toggleScan() {
       return;
     }
     if (!containerCheck?.hasContainer) {
-      showMessage(containerCheck?.error || 'ไม่พบ element ที่มี class "entry-content", "blog-wrapper" หรือ "cs-site-content" ในหน้าเว็บนี้', 'error');
+      showMessage(containerCheck?.error || 'ไม่พบ element ที่มี class "entry-content", "blog-wrapper" หรือ "cs-main-content" ในหน้าเว็บนี้', 'error');
       return;
     }
 
@@ -898,7 +898,7 @@ async function runDocCompareWithWeb(tabId, options = {}) {
   }
 
   if (!webRes || !webRes.success) {
-    showMessage(webRes?.error || 'ไม่พบ container เนื้อหา (entry-content / blog-wrapper / cs-site-content)', 'error');
+    showMessage(webRes?.error || 'ไม่พบ container เนื้อหา (entry-content / blog-wrapper / cs-main-content)', 'error');
     return;
   }
 

@@ -35,9 +35,13 @@ let styleEl = null;
 /** เก็บ element ตามลำดับบล็อกจาก DocCompare (สำหรับเลื่อนไปดูเมื่อเทียบกับไฟล์ .docx) */
 let articleBlockElements = [];
 
-const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span', 'i', 'picture', 'source', 'thead', 'tbody', 'tr', 'th', 'td'];
-const CONTENT_SELECTOR = '.entry-content, .blog-wrapper, .cs-site-content';
-const CONTENT_CLASSES = ['entry-content', 'blog-wrapper', 'cs-site-content'];
+const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span', 'i', 'picture', 'source', 'thead', 'tbody', 'tr', 'th', 'td', 'article', 'header', 'time'];
+/** ไม่แสดง badge ทั้งแท็กตัวเองและลูกหลาน ภายใต้ ancestor ที่มี class เหล่านี้ */
+const SKIP_BADGE_SUBTREE_SELECTOR = '.entry-title, .posted-on, .byline, .cs-entry__footer, .blog-doctorbanner, .dpsp-content-wrapper, .vsq-blogs-related-article, .seed-social';
+/** ไม่นำลิงก์ไปตรวจสอบ HTTP ถ้าอยู่ภายใต้ ancestor ที่มี class เหล่านี้ */
+const SKIP_LINK_CHECK_SELECTOR = '.social-icons, .blog-doctorbanner, .dpsp-content-wrapper, .vsq-blogs-related-article, .seed-social, .cs-entry__footer';
+const CONTENT_SELECTOR = '.entry-content, .blog-wrapper, .cs-main-content';
+const CONTENT_CLASSES = ['entry-content', 'blog-wrapper', 'cs-main-content'];
 
 function getContentContainer() {
   return document.querySelector(CONTENT_SELECTOR);
@@ -266,7 +270,7 @@ function activate() {
 
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content" ในหน้าเว็บนี้' };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content" ในหน้าเว็บนี้' };
   }
 
   isActive = true;
@@ -276,6 +280,7 @@ function activate() {
   elements.forEach(el => {
     const tag = el.tagName.toLowerCase();
     if (SKIP_TAGS.includes(tag)) return;
+    if (el.closest(SKIP_BADGE_SUBTREE_SELECTOR)) return;
 
     const cat = getCategory(tag);
     const colors = CATEGORY_COLORS[cat];
@@ -335,7 +340,10 @@ function activate() {
       'splide__arrow--prev', 
       'slick-prev', 
       'splide__arrow--next', 
-      'slick-next'
+      'slick-next',
+      'mPS2id-highlight',
+      'mPS2id-highlight-first',
+      'mPS2id-highlight-last'
     ];
 
     const elClasses = (!HIDE_CLASS_TAGS.includes(tag) && el.className)
@@ -394,18 +402,20 @@ function deactivate() {
 function collectLinks() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', links: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content"', links: [] };
   }
 
   const anchors = container.querySelectorAll('a[href]');
   const seen = new Set();
   const links = [];
 
-  const SKIP_DOMAINS = ['action=edit', 'm.me', 'facebook.com', 'x.com', 'lin.ee'];
+  // const SKIP_DOMAINS = ['action=edit', 'm.me', 'facebook.com', 'x.com', 'lin.ee'];
+  const SKIP_DOMAINS = ['action=edit'];
 
   anchors.forEach(a => {
     const href = a.href;
     if (!href || href.startsWith('javascript:') || href.startsWith('#') || href === '') return;
+    if (a.closest(SKIP_LINK_CHECK_SELECTOR)) return;
     if (SKIP_DOMAINS.some(d => href.includes(d))) return;
     if (seen.has(href)) return;
     seen.add(href);
@@ -420,7 +430,7 @@ function collectLinks() {
 function checkAnchorLinks() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content"', results: [] };
   }
 
   const anchors = container.querySelectorAll('a[href^="#"]');
@@ -456,7 +466,7 @@ function checkAnchorLinks() {
 function checkH2Structure() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content"', results: [] };
   }
 
   const h2List = container.querySelectorAll('h2');
@@ -519,7 +529,7 @@ function checkH2Structure() {
 function checkYearInContent() {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content"', results: [] };
   }
 
   const currentYear = new Date().getFullYear();
@@ -675,7 +685,7 @@ function scrollToCurrentYear(index) {
 function checkBranchInContent(expectedBranch) {
   const container = getContentContainer();
   if (!container) {
-    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"', results: [] };
+    return { success: false, error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content"', results: [] };
   }
 
   const expected = expectedBranch != null ? Number(expectedBranch) : null;
@@ -872,7 +882,7 @@ function hasContentContainer() {
   const container = getContentContainer();
   return {
     hasContainer: !!container,
-    error: container ? null : 'ไม่พบ element ที่มี class "entry-content", "blog-wrapper" หรือ "cs-site-content" ในหน้าเว็บนี้ — ส่วนขยายนี้เหมาะกับหน้าเนื้อหา (เช่น WordPress)'
+    error: container ? null : 'ไม่พบ element ที่มี class "entry-content", "blog-wrapper" หรือ "cs-main-content" ในหน้าเว็บนี้ — ส่วนขยายนี้เหมาะกับหน้าเนื้อหา (เช่น WordPress)'
   };
 }
 
@@ -881,7 +891,7 @@ function getArticleBlocksFromPage() {
   if (!container) {
     return {
       success: false,
-      error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-site-content"',
+      error: 'ไม่พบ element ที่มี class="entry-content" หรือ "blog-wrapper" หรือ "cs-main-content"',
       blocks: []
     };
   }

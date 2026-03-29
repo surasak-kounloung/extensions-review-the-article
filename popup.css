@@ -562,6 +562,7 @@ header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 120px;
   padding: 8px 14px;
   background: rgba(124, 111, 247, 0.2);
   color: #a7c3e7;
@@ -580,12 +581,11 @@ header {
 }
 
 .docx-filename {
+  max-width: 320px;
   font-size: 11px;
   color: #94a3b8;
-  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .doc-compare-results .link-text {

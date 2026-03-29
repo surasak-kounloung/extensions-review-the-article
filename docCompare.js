@@ -176,7 +176,7 @@
   }
 
   /** ไม่ดึงบล็อกจากส่วนท้ายบทความ / แชร์ / แบนเนอร์ — ลดสัญญาณรบกวนเมื่อเทียบกับ Word */
-  var SKIP_SUBTREE_SELECTOR = '.vsq-blogs-related-article, .blog-doctorbanner, #dpsp-content-bottom, .dpsp-content-wrapper, [id^="dpsp-"], .dpsp-networks-btns-wrapper';
+  var SKIP_SUBTREE_SELECTOR = '.vsq-blogs-related-article, .blog-doctorbanner, #dpsp-content-bottom, .dpsp-content-wrapper, [id^="dpsp-"], .dpsp-networks-btns-wrapper, .entry-title, .posted-on, .byline, .author-name, .nav-previous, .nav-next, .seed-social, .cs-entry__footer';
 
   function shouldSkipSubtree(el) {
     if (!el || !el.closest) return false;
