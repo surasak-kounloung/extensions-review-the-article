@@ -274,6 +274,9 @@ function injectStyles() {
       display: none !important;
     }
     .single-post .site-main .entry-content .wp-block-ps2id-block-target.htr-highlight-broken, 
+    .single-posts_en .site-main .entry-content .wp-block-ps2id-block-target.htr-highlight-broken, 
+    .single-post .blog-wrapper .entry-content .wp-block-ps2id-block-target.htr-highlight-broken, 
+    .single-post .site-content .entry-content .wp-block-ps2id-block-target.htr-highlight-broken, 
     .wp-block-ps2id-block-target.htr-highlight-broken {
       top: 0;
     }
