@@ -513,15 +513,29 @@ async function clearSavedResults(tabId) {
   ]);
 }
 
+/** manifest โหลด content.js อยู่แล้ว — อย่า executeScript ซ้ำ (จะทำให้ const ซ้ำและ SyntaxError) */
+async function ensureContentScripts(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+    return true;
+  } catch {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['docCompare.js', 'content.js']
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 async function toggleScan() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['docCompare.js', 'content.js']
-    });
-  } catch {
+  const scriptsOk = await ensureContentScripts(tab.id);
+  if (!scriptsOk) {
     showMessage('ไม่สามารถเข้าถึงหน้าเว็บนี้ได้', 'error');
     return;
   }

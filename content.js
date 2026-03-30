@@ -1,3 +1,7 @@
+(function () {
+  if (globalThis.__htmlTagReviewerContentInit) return;
+  globalThis.__htmlTagReviewerContentInit = true;
+
 const TAG_CATEGORIES = {
   structure: ['html', 'head', 'body', 'div', 'span', 'header', 'footer', 'main', 'section', 'article', 'aside', 'nav', 'template', 'slot'],
   heading: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
@@ -963,6 +967,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(getArticleBlocksFromPage());
   } else if (request.action === 'scrollToArticleBlock') {
     sendResponse(scrollToArticleBlock(request.index));
+  } else if (request.action === 'ping') {
+    sendResponse({ ok: true });
   }
   return true;
 });
+})();

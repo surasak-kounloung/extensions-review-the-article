@@ -106,18 +106,20 @@ async function checkLink(url) {
 
     const res = await fetch(url, {
       method: 'HEAD',
-      mode: 'no-cors',
       signal: controller.signal,
-      redirect: 'follow'
+      redirect: 'follow',
+      credentials: 'omit'
     });
 
     clearTimeout(timeout);
 
-    if (res.type === 'opaque') {
-      return { url, status: 0, ok: true, statusText: 'OK (no-cors)', checkType: 'http' };
-    }
-
-    return { url, status: res.status, ok: res.ok, statusText: res.statusText, checkType: 'http' };
+    return {
+      url,
+      status: res.status,
+      ok: res.ok,
+      statusText: res.statusText || '',
+      checkType: 'http'
+    };
   } catch (err) {
     if (err.name === 'AbortError') {
       return { url, status: 0, ok: false, statusText: 'Timeout', checkType: 'http' };
