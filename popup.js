@@ -641,18 +641,44 @@ function appendLinkResult(entry, container) {
     </div>
   `;
 
+  const isAnchorOkRow =
+    container.id === 'anchor-results' &&
+    entry.ok &&
+    entry.url &&
+    String(entry.url).trim().startsWith('#');
+
   if (!entry.ok) {
     div.style.cursor = 'pointer';
     div.addEventListener('click', async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
-        const res = await chrome.tabs.sendMessage(tab.id, { action: 'scrollToLink', url: entry.url, text: entry.text });
+        const res = await chrome.tabs.sendMessage(tab.id, {
+          action: 'scrollToLink',
+          url: entry.url,
+          text: entry.text,
+          linkIndex: entry.linkIndex
+        });
         if (res?.success) {
           await chrome.tabs.update(tab.id, { active: true });
         }
       } catch (err) {
         console.error('scrollToLink failed:', err);
+      }
+    });
+  } else if (isAnchorOkRow) {
+    div.style.cursor = 'pointer';
+    div.addEventListener('click', async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) return;
+        const res = await chrome.tabs.sendMessage(tab.id, {
+          action: 'scrollToAnchorTarget',
+          url: entry.url
+        });
+        if (res?.success) await chrome.tabs.update(tab.id, { active: true });
+      } catch (err) {
+        console.error('scrollToAnchorTarget failed:', err);
       }
     });
   }

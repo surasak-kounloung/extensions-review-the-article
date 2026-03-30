@@ -426,6 +426,17 @@ header {
   transform: translateX(3px);
 }
 
+#anchor-results .link-item.link-ok {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#anchor-results .link-item.link-ok:hover {
+  border-color: rgba(74, 222, 128, 0.55);
+  background: rgba(74, 222, 128, 0.08);
+  transform: translateX(3px);
+}
+
 .link-item.link-warn {
   border-color: rgba(251, 191, 36, 0.35);
   cursor: pointer;

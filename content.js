@@ -44,6 +44,18 @@ const SKIP_TAGS = ['script', 'style', 'link', 'meta', 'noscript', 'div', 'span',
 const SKIP_BADGE_SUBTREE_SELECTOR = '.entry-title, .posted-on, .byline, .cs-entry__footer, .blog-doctorbanner, .dpsp-content-wrapper, .vsq-blogs-related-article, .seed-social';
 /** ไม่นำลิงก์ไปตรวจสอบ HTTP ถ้าอยู่ภายใต้ ancestor ที่มี class เหล่านี้ */
 const SKIP_LINK_CHECK_SELECTOR = '.social-icons, .blog-doctorbanner, .dpsp-content-wrapper, .vsq-blogs-related-article, .seed-social, .cs-entry__footer';
+const SKIP_LINK_CHECK_DOMAINS = ['action=edit'];
+
+function shouldIncludeLinkInCheck(a) {
+  const rawAttr = a.getAttribute('href');
+  if (rawAttr != null && rawAttr.trim().startsWith('#')) return false;
+  const href = a.href;
+  if (!href || href.startsWith('javascript:') || href.startsWith('#') || href === '') return false;
+  if (a.closest(SKIP_LINK_CHECK_SELECTOR)) return false;
+  if (SKIP_LINK_CHECK_DOMAINS.some(d => href.includes(d))) return false;
+  return true;
+}
+
 const CONTENT_SELECTOR = '.entry-content, .blog-wrapper, .cs-main-content';
 const CONTENT_CLASSES = ['entry-content', 'blog-wrapper', 'cs-main-content'];
 
@@ -261,6 +273,10 @@ function injectStyles() {
     .kb-splide .splide__pagination li button .htr-tag-badge {
       display: none !important;
     }
+    .single-post .site-main .entry-content .wp-block-ps2id-block-target.htr-highlight-broken, 
+    .wp-block-ps2id-block-target.htr-highlight-broken {
+      top: 0;
+    }
   `;
   document.head.appendChild(styleEl);
 }
@@ -410,22 +426,19 @@ function collectLinks() {
   }
 
   const anchors = container.querySelectorAll('a[href]');
-  const seen = new Set();
   const links = [];
 
-  // const SKIP_DOMAINS = ['action=edit', 'm.me', 'facebook.com', 'x.com', 'lin.ee'];
-  const SKIP_DOMAINS = ['action=edit'];
-
   anchors.forEach(a => {
+    if (!shouldIncludeLinkInCheck(a)) return;
+
     const href = a.href;
-    if (!href || href.startsWith('javascript:') || href.startsWith('#') || href === '') return;
-    if (a.closest(SKIP_LINK_CHECK_SELECTOR)) return;
-    if (SKIP_DOMAINS.some(d => href.includes(d))) return;
-    if (seen.has(href)) return;
-    seen.add(href);
     const clone = a.cloneNode(true);
     clone.querySelectorAll('.htr-tag-badge').forEach(b => b.remove());
-    links.push({ url: href, text: clone.textContent.trim().substring(0, 80) });
+    links.push({
+      url: href,
+      text: clone.textContent.trim().substring(0, 80),
+      linkIndex: links.length
+    });
   });
 
   return { success: true, links };
@@ -816,7 +829,48 @@ function normalizeUrlForMatch(u) {
   }
 }
 
-function scrollToLink(url, textHint) {
+/** เลื่อนไปที่ element ปลายทางของลิงก์ # (id / name) — ไม่ใช่ตำแหน่งแท็ก <a> */
+function scrollToAnchorTargetByHash(hashUrl) {
+  const container = getContentContainer();
+  if (!container) return { success: false };
+
+  const raw = String(hashUrl || '').trim();
+  if (!raw.startsWith('#') || raw.length < 2) return { success: false };
+  const targetId = raw.substring(1);
+  let targetEl = document.getElementById(targetId);
+  if (!targetEl) {
+    try {
+      targetEl = document.querySelector(`[name="${CSS.escape(targetId)}"]`);
+    } catch {
+      targetEl = null;
+    }
+  }
+  if (!targetEl) return { success: false };
+
+  document.querySelectorAll('.htr-highlight-broken').forEach(el => {
+    el.style.removeProperty('outline');
+    el.style.removeProperty('outline-offset');
+    el.style.removeProperty('background-color');
+    el.classList.remove('htr-highlight-broken');
+  });
+
+  targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  targetEl.style.outline = '3px solid #fbbf24';
+  targetEl.style.outlineOffset = '3px';
+  targetEl.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
+  targetEl.classList.add('htr-highlight-broken');
+
+  setTimeout(() => {
+    targetEl.style.removeProperty('outline');
+    targetEl.style.removeProperty('outline-offset');
+    targetEl.style.removeProperty('background-color');
+    targetEl.classList.remove('htr-highlight-broken');
+  }, 5000);
+
+  return { success: true };
+}
+
+function scrollToLink(url, textHint, linkIndex) {
   const container = getContentContainer();
   if (!container) return { success: false };
 
@@ -840,6 +894,16 @@ function scrollToLink(url, textHint) {
       const aNorm = aRaw.startsWith('#') ? aRaw : (aRaw ? '#' + aRaw : '');
       return aNorm === normHref || aRaw === rawHref;
     });
+  }
+
+  if (!anchor && typeof linkIndex === 'number' && linkIndex >= 0) {
+    const collected = [];
+    anchors.forEach(a => {
+      if (shouldIncludeLinkInCheck(a)) collected.push(a);
+    });
+    if (linkIndex < collected.length) {
+      anchor = collected[linkIndex];
+    }
   }
 
   if (!anchor) {
@@ -947,8 +1011,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(collectLinks());
   } else if (request.action === 'checkAnchorLinks') {
     sendResponse(checkAnchorLinks());
+  } else if (request.action === 'scrollToAnchorTarget') {
+    sendResponse(scrollToAnchorTargetByHash(request.url));
   } else if (request.action === 'scrollToLink') {
-    sendResponse(scrollToLink(request.url, request.text));
+    sendResponse(scrollToLink(request.url, request.text, request.linkIndex));
   } else if (request.action === 'checkH2Structure') {
     sendResponse(checkH2Structure());
   } else if (request.action === 'scrollToH2') {
