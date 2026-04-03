@@ -45,6 +45,8 @@ const SKIP_BADGE_SUBTREE_SELECTOR = '.entry-title, .posted-on, .byline, .cs-entr
 /** ไม่นำลิงก์ไปตรวจสอบ HTTP ถ้าอยู่ภายใต้ ancestor ที่มี class เหล่านี้ */
 const SKIP_LINK_CHECK_SELECTOR = '.social-icons, .blog-doctorbanner, .dpsp-content-wrapper, .vsq-blogs-related-article, .seed-social, .cs-entry__footer';
 const SKIP_LINK_CHECK_DOMAINS = ['action=edit'];
+/** ไม่ตรวจเลขปี / จำนวนสาขาในเนื้อหาภายใต้ ancestor นี้ (เช่น บทความที่เกี่ยวข้อง) */
+const SKIP_YEAR_AND_BRANCH_CHECK_SELECTOR = '.vsq-blogs-related-article';
 
 function shouldIncludeLinkInCheck(a) {
   const rawAttr = a.getAttribute('href');
@@ -197,7 +199,7 @@ function injectStyles() {
     li > b > .htr-tag-badge, 
     li > em > .htr-tag-badge, 
     li > u > .htr-tag-badge {
-      top: calc(-35px + var(--htr-depth-offset, 0px)) !important;
+      top: calc(-55px + var(--htr-depth-offset, 0px)) !important;
     }
     table th > strong > .htr-tag-badge, 
     table td > strong > .htr-tag-badge {
@@ -366,11 +368,15 @@ function activate() {
       'slick-next',
       'mPS2id-highlight',
       'mPS2id-highlight-first',
-      'mPS2id-highlight-last'
+      'mPS2id-highlight-last', 
+      'has-text-color',
+      'has-link-color'
     ];
 
+    const HIDE_CLASS_PREFIXES = ['htr-', 'wp-elements-'];
+
     const elClasses = (!HIDE_CLASS_TAGS.includes(tag) && el.className)
-      ? String(el.className).split(/\s+/).filter(c => c && !c.startsWith('htr-') && !HIDE_CLASSES.includes(c)).join('.')
+      ? String(el.className).split(/\s+/).filter(c => c && !HIDE_CLASS_PREFIXES.some(p => c.startsWith(p)) && !HIDE_CLASSES.includes(c)).join('.')
       : '';
     const classStr = elClasses ? ` .${elClasses}` : '';
 
@@ -570,6 +576,7 @@ function checkYearInContent() {
   while ((textNode = walker.nextNode())) {
     const parent = textNode.parentElement;
     if (!parent || SKIP_TAGS.includes(parent.tagName.toLowerCase())) continue;
+    if (parent.closest(SKIP_YEAR_AND_BRANCH_CHECK_SELECTOR)) continue;
 
     const text = textNode.textContent;
     let match;
@@ -720,6 +727,7 @@ function checkBranchInContent(expectedBranch) {
   while ((textNode = walker.nextNode())) {
     const parent = textNode.parentElement;
     if (!parent || SKIP_TAGS.includes(parent.tagName.toLowerCase())) continue;
+    if (parent.closest(SKIP_YEAR_AND_BRANCH_CHECK_SELECTOR)) continue;
 
     const text = textNode.textContent;
     let match;
